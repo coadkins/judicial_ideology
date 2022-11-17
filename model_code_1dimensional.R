@@ -439,7 +439,7 @@ fit_2PL_hurdle <- stan(
     save_warmup = FALSE
 )
 
-saveRDS(fit_2PL_hurdle, paste(save, "fit_2PL_hurdle.RDS", sep = ""))
+saveRDS(fit_2PL_hurdle, ("data/fit_2PL_hurdle.RDS", sep = "")
 
 # 4. Hurdle Model 1 D (constrained)
 

@@ -15,45 +15,46 @@ toc: true
 
 This project measures the ideaologies of federal court judges in the Seventh Circuit Court of Appeals and the U.S. District Courts directly under its jurisdiction. By contrast with other recent efforts, my approach uses the outcomes of actual judicial practice - including both final rulings and settlements - to estimate ideal points for each judge along two dimensions. 
 
-In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@martinDynamicIdealPoint2002, @epsteinJudicialCommonSpace2007]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@bonicaCommonspaceScalingAmerican2017]; and (3) treating skeptically judges in-court descriptions of their own behavior. [@lauderdalePragmaticSocialMeasurement2021]  
+In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@martinDynamicIdealPoint2002; @epsteinJudicialCommonSpace2007]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@bonicaCommonspaceScalingAmerican2017]; and (3) treating skeptically judges' in-court descriptions of their own behavior. [@lauderdalePragmaticSocialMeasurement2021]  
 
 # Description of Data
 
-The data for this project comes the Federal Judicial Center's (FJC) database of federal court filings and the FJC Biographical Database. Newly available data from the Courtlistener project allows linkage of these records for the first time.
+The data for this project comes the Federal Judicial Center's (FJC) database of federal court filings and the FJC 
+Biographical Database. Newly available data from the Courtlistener project allows linkage of these records for the first time.
 
 Federal District Court and Appeals Court Filings between 1988 and 2020
 
-113 judges
+The data cover 113 judges, who decide a total of 23, 401 cases between 1988 and 2020. Of these cases, most are heard only by a single judge. However, 2,972 cases are appealed and ultimately heard by four judges (1 district court judge and 3 appellate judges sitting in a panel). 
 
-23,401
-2,972 appeals cases heard by a panel of judges
-28 categories of cases
-
-Case outcomes are coded by conservativsm
-1 = case decided by judge for defendant
-2 = case voluntarly settled or withdrawn by one or both
-litigants
-3 = case decided by judge for plaintiff
-Cases decided by Jury are excluded
+The FJC database contains information about case's subject matter, basis for jurisdiction and ultimate disposition. Using this information, I code cases that reach a final disposition as receiving either a "liberal" or "conservative" resolution. For instance, class actions or consumer product liabilities cases that end in victories for the plaintiff are "liberal" outcomes; employment discrimination cases that end in victories for the defendants are "conservative" outcomes. Cases decidied by jury are excluded.
 
 # General Strategy
 
-For each judge, I estimate the ideal point $\eta_j$ along or or two idealogical dimensions. I begin with a standard 2 Parameter Logitistic (2PL) model familiar from item response theory, but without constraints on the sign of the discrimination parameter, following Clinton, Jackman and Rivers ([@jackmanMultidimensionalAnalysisRoll2001 @riversIdentificationMultidimensionalSpatial2003, @clintonStatisticalAnalysisRoll2004]. 
+For each judge, I estimate the ideal point $\eta_j$ along one or two idealogical dimensions. I begin with a standard 2 Parameter Logitistic (2PL) model familiar from item response theory, but without constraints on the sign of the discrimination parameter, following Clinton, Jackman and Rivers ([@jackmanMultidimensionalAnalysisRoll2001; @riversIdentificationMultidimensionalSpatial2003; @clintonStatisticalAnalysisRoll2004]. 
 
 $$
 P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi(\alpha_i+ \beta_i {\eta_j}^\top)
 $$
 
-This model can only account for the binary outcome of a conservative or liberal judicial choice. To allow information about settlement to effect the estimation of $\eta_j$, I embed the 2PL model in a "hurdle" model, following Kubinec. ([@kubinecIdealstanPackageIdeal2018])
+This model can only account for the binary outcome of a conservative or liberal judicial choice and ignores cases that do not end in a final judgment. This is problematic because the subset of cases that reach litigation and final judgement is not random, and in fact is likely correlated with the dependent variable. Litigants may strategically settle cases in advance of final judgment partly based on perceptions of the judges ideaological leanings [@priestSelectionDisputesLitigation1984] 
 
-The hurdle model ... 
+To allow information about settlement to effect the estimation of $\eta_j$, I embed the 2PL model in a "hurdle" model, following Kubinec.[@kubinecIdealstanPackageIdeal2018] In this simple model, cases are settled with probability $\Phi(\gamma_0 + \gamma_1 \eta_j)$, where $\gamma_1$ is a constant settlement parameter that describes the relationship between and judicial ideaology. If a case does settle, the outcome is determined by the 2PL model.
+
+
+::: {.hidden}
+$$
+P(y_{ij} | \eta_j) = \begin{cases}
+\text{if } s = 0,\Phi(\gamma_0 + \gamma_1 \eta_j) \\
+\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times P(y_{ij} | \beta_i, \eta_j, \alpha_i) 
+\end{cases}
+$$
+::: 
 
 I discuss the details and identification strategy for each model below. 
 
 # Outstanding Issues
 
 (1) For all three models, the estimated ideals points for all judges reflect weak polarization on one or both dimensions. Furthermore, neither the one-dimensional or two-dimensional ideal points track very well the political party of the judges appointing President. This may be a true fact about the world; but is somewhat inconsistent with other evidence about recent politicization and polarization of the judiciary. [@bonicaJudicialTugWar2020c]  
-
 (2) The posterior predictive distribution of case outcomes predicts the empirical distribution of case outcomes with only moderate accuracy. In particular, the posterior predictive distributions for all three models overestimates the share of "liberal" outcomes, whether or not settlements are included in the model. All models also slightly underestimate the share of "conservative" outcomes.
 
 (3) At present, the assignment of case categories to outcomes relies only on my judgement. In the longer term, the assignment of case categories to outcomes would benefit from stronger quantitative justifications. 
@@ -74,13 +75,13 @@ $$
 * $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
 * $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
 
-Identification for the one dimensional model requires. [@riversIdentificationMultidimensionalSpatial2003] 
+Identification for the one dimensional model requires a combination of fixing points and parameter restrictions. [@riversIdentificationMultidimensionalSpatial2003] 
 
-Following Kubinec, I create these constraints by estimating the model two times. The first estimate [only 0]. In the second estimate, I constrain those values of $eta_j$ in the highest or lowest **10 percent** of the estimates from the first model to be positive or negative, respectively. 
-
-[@kubinecIdealstanPackageIdeal2018]
+Following Kubinec, I create these constraints by estimating the model two times. [@kubinecIdealstanPackageIdeal2018] The first set of estimates are unconstrained. Then, I restimate the model using the same point restriction and additional parameter restrictions on the values of $eta_j$ in the highest or lowest **10 percent** of estimates from the first model. I restrict the signs of these parameters to be positive or negative, respectively. 
 
 ![](graphics/ppc_fit_2PL_constrained.png)
+
+The estimated ideals points for all judges reflect weak polarization on the latent factor, with substantial bunching of ideal points along both dimensions.
 
 ![](graphics/ci_constrained.png)
 
@@ -101,9 +102,13 @@ $$
 - $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
 - $\Phi$ is the normal cumulative distribution function.
 
-The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: values of -1 correspond to settlements)
+Following Kubinec, I create these constraints by estimating the model two times. The first estimate uses no point or parameter restrictions. Then, I restimate the model but add one point restriction and additional parameter restrictions on the values of $eta_j$. The $eta_j$ value with the lowest estimated absolute value in the first model is restricted to 0. Additionally, I restrict the $eta_j$ values in the highest **20 percent** or lowest **5 percent** of estimates from the first model to have postive or negative signs, respectively. These cutoffs were chosen through experiment to avoid "splitting the likelihood" by forcing non-zero signs on judges whose true ideal points are near 0. [@bafumiPracticalIssuesImplementing2005]
+
+The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: in this graphic, values of -1 correspond to settlements)
 
 ![](graphics/ppc_2PL_hurdle_constrained.png)
+
+The estimated ideals points for all judges reflect weak polarization on the latent factor, with substantial bunching of ideal points along both dimensions.
 
 ![](graphics/ci_hurdle_constrained.png)
 
@@ -124,9 +129,17 @@ $$
 * $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
 - $\Phi$ is the normal cumulative distribution function.  
 
-The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: values of -1 correspond to settlements)
+Following Kubinec, I create these constraints by estimating the model two times. The first estimate imposes zero-mean and unit variance on the ideal points and forces the ideal points from each dimension to be orthagonal (zero covariance). 
+
+Then I restimate the model using the same restrictions, plus additional point and parameter restrictions on $eta_j$. For each dimension, the $eta_j$ value with the lowest estimated absolute value in the first model is restricted to 0. Furthermore, for each dimension, I restrict the $eta_j$ values in the highest **20 percent** or lowest **5 percent** of estimates from the first model to have postive or negative signs, respectively. 
+
+The $\beta_i$ parameters are similarly constrained.
+
+The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: values of -1 correspond to settlements in this graphic)
 
 ![](graphics/ppc_2d.png)
+
+The estimated ideals points for all judges reflect weak polarization on the latent factor, with substantial bunching of ideal points along both dimensions.
 
 ![](graphics/2d_eta1.png)
 
