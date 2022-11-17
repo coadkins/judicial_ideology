@@ -7,13 +7,11 @@ library(forcats)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 
-save <- "/run/media/coryadkins/expansion/bayes_project/"
-
 # Load key for judge names
 
-judge_key <- read_csv("judge_key.csv", col_types = "ffc")
+judge_key <- read_csv("data/judge_key.csv", col_types = "ffc")
 
-model_data <- readRDS("model_data.RDS")
+model_data <- readRDS("data/model_data.RDS")
 
 # Posterior Predictive Checks
 
@@ -21,7 +19,7 @@ color_scheme_set("brightblue")
 
 ## 2PL Constrained
 
-fit_2PL_constrained <- readRDS(paste(save, "fit_2PL_constrained.RDS", sep = ""))
+fit_2PL_constrained <- readRDS("data/fit_2PL_constrained.RDS", sep = "")
 
 y_hat_2PL_constrained <- as.matrix(fit_2PL_constrained, pars = "y_hat")
 

@@ -10,8 +10,6 @@ library(forcats)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 
-save <- "/run/media/coryadkins/expansion/bayes_project/"
-
 model_data <- readRDS("model_data.RDS")
 
 stan_code_hurdle_2d <- "
@@ -313,10 +311,10 @@ model_data_2d_constrained$eta_nonzero <- matrix(
     ncol = model_data_2d_constrained$N_dim
 )
 
-model_data_2d_constrained$eta_nonzero[which(abs(eta_post_hurdle$'1') < .01), 
+model_data_2d_constrained$eta_nonzero[which(abs(eta_post_hurdle$'1') < .01),
 1] <- 0
 
-model_data_2d_constrained$eta_nonzero[which(abs(eta_post_hurdle$'2') < .01), 
+model_data_2d_constrained$eta_nonzero[which(abs(eta_post_hurdle$'2') < .01),
 2] <- 0
 
 saveRDS(model_data_2d_constrained, paste(save,
@@ -331,6 +329,4 @@ fit_2PL_hurdle_2d_constrained <- stan(
     save_warmup = FALSE
 )
 
-
-
-saveRDS(fit_2PL_hurdle_2d_constrained, paste(save, "fit_2PL_hurdle_2d_constrained.RDS", sep = ""))
+saveRDS(fit_2PL_hurdle_2d_constrained, "data/fit_2PL_hurdle_2d_constrained.RDS")

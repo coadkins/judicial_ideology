@@ -8,86 +8,100 @@ geometry:
   - margin=1in
 linestretch: 2
 indent: true  
-abstract: "A really good paper"
+toc: true
 ---
 
 # Background
 
-This project measures the ideaologies of federal court judges in the Seventh Circuit Court of Appeals and the U.S. District Courts directly under its jurisdiction. By contrast with other recent efforts, my approach uses 
+This project measures the ideaologies of federal court judges in the Seventh Circuit Court of Appeals and the U.S. District Courts directly under its jurisdiction. By contrast with other recent efforts, my approach uses the outcomes of actual judicial practice - including both final rulings and settlements - to estimate ideal points for each judge along two dimensions. 
 
-In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@Martin, @Epstein]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@Bonica]; and (3) treating skeptically judges in-court descriptions of their own behavior [@Lauderdale].  
-
-[sentence here]
+In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@martinDynamicIdealPoint2002, @epsteinJudicialCommonSpace2007]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@bonicaCommonspaceScalingAmerican2017]; and (3) treating skeptically judges in-court descriptions of their own behavior. [@lauderdalePragmaticSocialMeasurement2021]  
 
 # Description of Data
 
+The data for this project comes the Federal Judicial Center's (FJC) database of federal court filings and the FJC Biographical Database. Newly available data from the Courtlistener project allows linkage of these records for the first time.
+
+Federal District Court and Appeals Court Filings between 1988 and 2020
+
+113 judges
+
+23,401
+2,972 appeals cases heard by a panel of judges
+28 categories of cases
+
+Case outcomes are coded by conservativsm
+1 = case decided by judge for defendant
+2 = case voluntarly settled or withdrawn by one or both
+litigants
+3 = case decided by judge for plaintiff
+Cases decided by Jury are excluded
+
+# General Strategy
+
+For each judge, I estimate the ideal point $\eta_j$ along or or two idealogical dimensions. I begin with a standard 2 Parameter Logitistic (2PL) model familiar from item response theory, but without constraints on the sign of the discrimination parameter, following Clinton, Jackman and Rivers ([@jackmanMultidimensionalAnalysisRoll2001 @riversIdentificationMultidimensionalSpatial2003, @clintonStatisticalAnalysisRoll2004]. 
+
+$$
+P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi(\alpha_i+ \beta_i {\eta_j}^\top)
+$$
+
+This model can only account for the binary outcome of a conservative or liberal judicial choice. To allow information about settlement to effect the estimation of $\eta_j$, I embed the 2PL model in a "hurdle" model, following Kubinec. ([@kubinecIdealstanPackageIdeal2018])
+
+The hurdle model ... 
+
+I discuss the details and identification strategy for each model below. 
+
 # Outstanding Issues
 
-(1) For all three models, the estimated ideals points for all judges reflect weak polarization on . Furthermore, neither the one-dimensional or two-dimensional ideal points track very well the judges' appointment . This may be a true fact about the world; but is somewhat inconsistent with other evidence ([]). See Figures 
+(1) For all three models, the estimated ideals points for all judges reflect weak polarization on one or both dimensions. Furthermore, neither the one-dimensional or two-dimensional ideal points track very well the political party of the judges appointing President. This may be a true fact about the world; but is somewhat inconsistent with other evidence about recent politicization and polarization of the judiciary. [@bonicaJudicialTugWar2020c]  
 
-(2) The posterior predictive distribution of case outcomes predicts the empirical distribution of case outcomes with only moderate accuracy. In particular, the posterior predictive distributions for all three models poorly predicts the share of cases that settle. 
+(2) The posterior predictive distribution of case outcomes predicts the empirical distribution of case outcomes with only moderate accuracy. In particular, the posterior predictive distributions for all three models overestimates the share of "liberal" outcomes, whether or not settlements are included in the model. All models also slightly underestimate the share of "conservative" outcomes.
 
-(3) 
+(3) At present, the assignment of case categories to outcomes relies only on my judgement. In the longer term, the assignment of case categories to outcomes would benefit from stronger quantitative justifications. 
 
-# Results
+# Models and Results
 
-Hurdle model described by [@Kubinec]. 
-
-It improves upon existing efforts 
-
-In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy at  .[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research Center survey conducted after the *Dobbs* decision found that  more than 50% of Democrat respondents indicated that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@nwPositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision [@nwPositiveViewsSupreme2022]. 
-
-Although an enormous body of evidence attests to the presence of idealogy among judges, disagreement persists about its content and importance: in particular, whether it may be described one or several dimensions, and how these dispositions relate to case outcomes.  To preview, I briefly review existing attempts to conceptualize and measure judicial ideaology. I then present a Bayesian ideal point model.
-  
-Bonica and Sen review the primary approaches to measurement of judicial ideology. [@bonicaEstimatingJudicialIdeology2021a] To preview, existing attempts to measure judicial idealogy suffer at least one of three limitations: (1) a failure to incorporate or describe the ideaologies of judges in the lower federal and states courts (2); a failure to  ; and (3) a failure to incoporate information about case outcomes into the measurement of ideaology.
-
-# Judicial Ideaology
-
-Martin and Quinn... dynamic item response model to model policy preferences of Supreme Court justices over time [@martinDynamicIdealPoint2002a]. Unidimensional preferences measure. Relatively agnostic about (case content), besides using judges as anchor points for identication. The judges were (Harlan, Douglas, Marshall, Brennan, Frankfurter, Fortas, Rehnquist, Scalia, and Thomas). However, as Bonica and Sen have argued, this ignores (selection effects related to the court's docket.) 
-
-Coding-based approaches... [@epsteinJudicialCommonSpace2007] 
-
-Difficulty justifying the coding. Campaign contributions...
-[@bonicaCommonspaceScalingAmerican2017]
-
-Difficulty justifying the focus on a single dimension or difficulty identifying multiple dimensions. Idenitication problem comes from Rivers [@rivers2003]. Lauderdale and Clark solve this problem by .
-
-# Data
-
-# Exploratory Factor Analysis
-
-Use of ideal-point approaches to estimate legislator preferences. 
-[@clintonStatisticalAnalysisRoll2004] 
-
-## 2PL Model
+## One Dimensional 2PL Model with No Hurdle
 
 $$
-P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi^{-1}(\alpha_i+ \beta_i {\eta_j}^\top)
+P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi(\alpha_i+ \beta_i {\eta_j}^\top)
 $$
-
 $$
 y_{ij} | \eta_j, \alpha_i, \beta_i \sim \text{Bernoulli}(\Psi^{-1}(\alpha_i + \beta_i {\eta_j}^\top))
 $$
 
 - $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
 - $\eta_j$ is a $[1 \times d]$ vector of ability parameters
+* $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
 * $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
-* The "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
+
+Identification for the one dimensional model requires. [@riversIdentificationMultidimensionalSpatial2003] 
+
+Following Kubinec, I create these constraints by estimating the model two times. The first estimate [only 0]. In the second estimate, I constrain those values of $eta_j$ in the highest or lowest **10 percent** of the estimates from the first model to be positive or negative, respectively. 
+
+[@kubinecIdealstanPackageIdeal2018]
 
 ![](graphics/ppc_fit_2PL_constrained.png)
 
 ![](graphics/ci_constrained.png)
 
-## 2PL Model with Hurdle
+## One Dimensional 2PL Model with Hurdle
 
 ::: {.hidden}
 $$
 P(y_{ij} | \eta_j) = \begin{cases}
 \text{if } s = 0,\Phi(\gamma_0 + \gamma_1 \eta_j) \\
-\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^{-1}(\beta_i \eta_j-\alpha_i))
+\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^(\beta_i \eta_j-\alpha_i))
 \end{cases}
 $$
 ::: 
+
+- $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
+- $\eta_j$ is a $[1 \times d]$ vector of ability parameters
+- $\gamma_1$ is a $[1 \times d]$ vector of settlement parameters
+- $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
+- $\Phi$ is the normal cumulative distribution function.
+
+The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: values of -1 correspond to settlements)
 
 ![](graphics/ppc_2PL_hurdle_constrained.png)
 
@@ -99,7 +113,7 @@ $$
 $$
 P(y_{ij} | \eta_j) = \begin{cases}
 \text{if } s = 0,\Phi(\gamma_0 + \gamma_1 \eta_j) \\
-\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^{-1}(\beta_i \eta_j-\alpha_i))
+\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^(\beta_i \eta_j-\alpha_i))
 \end{cases}
 $$
 :::
@@ -107,7 +121,10 @@ $$
 - $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
 - $\eta_j$ is a $[1 \times d]$ vector of ability parameters
 - $\gamma_1$ is a $[1 \times d]$ vector of settlement parameters
-- $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$ 
+* $\Psi$ is the "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
+- $\Phi$ is the normal cumulative distribution function.  
+
+The posterior predictive distribution of outcomes overestimates the proportion of liberal outcomes relative to the empirical distribution, and also slightly underestimates the share of conservative outcomes. (Note: values of -1 correspond to settlements)
 
 ![](graphics/ppc_2d.png)
 
