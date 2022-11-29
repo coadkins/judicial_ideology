@@ -9,12 +9,12 @@ library(purrr)
 library(forcats)
 library(vroom)
 
-options(mc.cores = parallel::detectCores())
+options(mc.cores = 2)
 rstan_options(auto_write = TRUE)
 
 # Clean Data for Model
 
-fjc_cl_dt <- vroom("data/cl_fjc_dt_seventh.csv") %>%
+fjc_cl_dt <- vroom::vroom("data/cl_fjc_dt_seventh.csv") %>%
              clean_names()
 
 ## Identify Relevant Cases Types (including duplicate codes)
@@ -138,24 +138,27 @@ all_cases <- c(cultural_cases, labor_litigation,
 
 ## Clean Data for Model
 
-# Recode Responses 0,1 for Conservative, Liberal and -1 for Settlement
+# Recode Responses 1 for Conservative, 2 for Settlement, 3 for Liberal
 
 # Function
 
+fjc_cl_dt <- fjc_cl_dt %>%
+              filter(disp %in% c(2,3,8,9,6, 3, 14, 5,17,13), 
+                     judgment %in% c(1,2))
+
 recode_outcome <- function(judgment, disp, ...) {
 if (disp %in% c (13)) {
-	return(-1)
+	return(2L)
 } else if (judgment == 1 & disp %in% c(2, 3, 8, 9, 6, 3, 14, 5, 17)) {
-	return(1)
+	return(1L)
 } else if (judgment == 2 & disp %in% c(2, 3, 8, 9, 6, 3, 14, 5, 17)) {
-    return(0)
+    return(3L)
 } else return(NA)
 }
 
 ## Apply Function
 
-fjc_cl_dt$outcome <- pmap_dbl(fjc_cl_dt, recode_outcome)
-
+fjc_cl_dt$outcome <- pmap_int(fjc_cl_dt, recode_outcome)
 
 ## filter only case types that can be interpreted As liberal/conservative 
 
@@ -177,144 +180,60 @@ model_data <- fjc_cl_dt %>%
 
 # Reduce dataset because of system memory
 
-sample <- sample(fct_unique(model_data$case_id),
-                    20000, replace = FALSE)
+# sample <- sample(fct_unique(model_data$case_id),
+#                    20000, replace = FALSE)
 
-model_data <- model_data %>%
-              filter(case_id %in% sample) %>%
-              mutate(case_id = fct_drop(case_id),
-                     judge = fct_drop(judge))
+#model_data <- model_data %>%
+#              filter(case_id %in% sample) %>%
+#              mutate(case_id = fct_drop(case_id),
+#                     judge = fct_drop(judge))
 
 # save key for names
 judge_key <- model_data %>%
              distinct(judge, name, party_id) %>%
              mutate(judge = as.numeric(judge))
 
-write_csv(judge_key, "judge_key.csv")
+write_csv(judge_key, "data/judge_key_ord.csv")
 
 # save data
 model_data <- model_data %>%
 select(judge, case_id, outcome, party_id)
 
-saveRDS(model_data, "model_data.RDS")
+saveRDS(model_data, "data/model_data_ord.RDS")
 
-# BINARY OUTCOME DATA
-# Compose Data for STAN and Removes Settled Cases (Outcome = -1)
+#model_data_ord_STAN <- model_data %>%
+#mutate(case_id = fct_drop(case_id),
+#       judge = fct_drop(judge)) %>%
+#tidybayes::compose_data(.n_name = n_prefix("N"))
 
-model_data_2PL <- model_data %>%
-filter(!(outcome == -1)) %>%
-mutate(case_id = fct_drop(case_id),
-       judge = fct_drop(judge)) %>%
-tidybayes::compose_data(.n_name = n_prefix("N"))
+# saveRDS(model_data_ord, "data/model_data_ord_STAN.RDS")
 
-saveRDS(model_data_2PL, "model_data_2PL.RDS")
+# 1. 1 Dimensional Ordinal Model 
 
-# 1. One Dimensional 2PL Model (unconstrained)
+model_data_ord <- readRDS("data/model_data_ord.RDS")
 
-model_data_2PL <- readRDS("model_data_2PL.RDS")
-
-stan_code_2PL <- "data {
-    int<lower=0> N;
-    int<lower=0> N_case_id;
-    int<lower=1> N_judge;
-    int<lower=0> outcome[N];
-    int<lower=1> case_id[N];
-    int<lower=1> judge[N];
-    int<lower=1> party_id[N];
-    int<lower=1> N_party_id;
-}
-
-parameters {
-    vector[N_case_id] alpha; // intercepts/difficulty
-    vector[N_judge] eta;
-// ability score
-   vector[N_case_id] beta; // discrimination
-}
-model {
-    vector[N] theta;
-    for (n in 1:N) {
-        theta[n] = beta[case_id[n]] * eta[judge[n]] - alpha[case_id[n]];
-    }
-
-    outcome ~ bernoulli_logit(theta);
-
-    alpha ~ std_normal();
-    eta ~ std_normal();
-    beta ~ std_normal();
-}
-"
-## Run Model
-
-fit_2PL <- stan(
-    model_code = stan_code_2PL,
-    data = model_data_2PL,
-    iter = 2000,
-    save_warmup = FALSE
+formula_ord_unconstrained <- bf(
+    outcome ~ 1 + (1 |i| case_id) + (1 | judge),
+    disc ~ 1 + (1 |i| case_id)
 )
 
-saveRDS(fit_2PL, paste(save, "fit_2PL.RDS", sep = ""))
+priors_ord_unconstrained <- c(
+                            prior("normal(0,1)", class = "sd", group = "judge") +
+                            prior("normal(0, 1)", class = "sd", group = "case_id") +
+                            prior("normal(0, 1)", class = "sd", group = "case_id", dpar = "disc")
+                            )
 
-# 2. One Dimensional 2PL Model (constrained)
+fit_ord_unconstrained <- brm(
+    formula = formula_ord_unconstrained,
+    data = model_data_ord,
+    family = cumulative("probit"),
+    chains = 4,
+    iter = 2000,
+    prior = priors_ord_unconstrained,
+    file = "data/fit_ord_unconstrained"
+)
 
-stan_code_2PL_constrained <- "data {
-    int<lower=0> N;
-    int<lower=0> N_case_id;
-    int<lower=1> N_judge;
-    int<lower=0> outcome[N];
-    int<lower=1> case_id[N];
-    int<lower=1> judge[N];
-    int<lower=1> party_id[N];
-    int<lower=1> N_party_id;
-    int<lower = -1, upper = 1> beta_sign[N_case_id]; //sign
-    int<lower = -1, upper =1> eta_sign[N_judge];     // eta sign
-}
-
-parameters {
-    vector[N_case_id] alpha; // difficulty
-    real<lower=0> eta_pos[N_judge];     // ability score (+ constraint)
-    real eta_open[N_judge];
-    real<lower=0> beta_pos[N_case_id]; // discrimination (+ constraint)
-    real beta_open[N_case_id]; // discrimination (no constraint)
-}
-
-transformed parameters {
-    real beta[N_case_id]; // discrimination
-    real eta[N_judge];    // ability
-    for (i in 1:N_case_id) {
-         if (beta_sign[i] == 0) beta[i] = beta_open[i];
-         else if (beta_sign[i] == 1) beta[i] = beta_pos[i];
-         else beta[i] = beta_pos[i] * -1;
-     }
-    for (i in 1:N_judge) {
-         if (eta_sign[i] == 0) eta[i] = eta_open[i];
-         else if (eta_sign[i] == 1) eta[i] = eta_pos[i];
-         else eta[i] = eta_pos[i] * -1;
-     }
-}
-
-model {
-    vector[N] theta;
-    for (n in 1:N) {
-        theta[n] = beta[case_id[n]] * eta[judge[n]] - alpha[case_id[n]];
-    }
-
-    outcome ~ bernoulli_logit(theta);
-
-    alpha ~ std_normal();
-    eta_pos ~ lognormal(1,1);
-    eta_open ~ std_normal();
-    beta_pos ~ lognormal(1,1);
-    beta_open ~ std_normal();
-}
-generated quantities {
-    int<lower=0> y_hat[N];
-    vector[N] theta_hat;
-    for (n in 1:N) {
-        theta_hat[n] = beta[case_id[n]] * eta[judge[n]] - alpha[case_id[n]];
-    }
-      y_hat = bernoulli_logit_rng(theta_hat);
-}
-"
+# 2. One Dimensional Ordinal Model (constrained)
 
 ## Constrain Betas (1 = positive, 0 = free, -1 = negative)
 
@@ -375,206 +294,7 @@ saveRDS(model_data_constrained, paste(save, "model_data_constrained.RDS", sep = 
 
 ## Fit constrained 1 Dimensional 2PL model
 
-fit_2PL_constrained <- stan(
-    model_code = stan_code_2PL_constrained,
-    data = model_data_constrained,
-    iter = 3000,
-    save_warmup = FALSE
+fit_ord_constrained <- brm(
+
 )
 
-saveRDS(fit_2PL_constrained, paste(save, "fit_2PL_constrained.RDS", sep = ""))
-
-# 3. Hurdle Model 2PL (unconstrained)
-
-stan_code_hurdle <- "data {
-    int<lower=0> N;
-    int<lower=0> N_case_id;
-    int<lower=1> N_judge;
-    int<lower=-1> outcome[N];
-    int<lower=1> case_id[N];
-    int<lower=1> judge[N];
-    int<lower=1> party_id[N];
-    int<lower=1> N_party_id;
-}
-parameters {
-    vector[N_case_id] alpha; // difficulty
-    vector[N_judge] eta;     // ability score
-    vector[N_case_id] beta;  // discrimination
-    real gamma_0;       // settlement
-    real gamma_1;       // settlement
-}
-model {
-    for (n in 1:N) {
-        if (outcome[n] == -1)
-            1 ~ bernoulli(Phi_approx(gamma_0 + gamma_1*eta[judge[n]]));
-        else {
-            0 ~ bernoulli(Phi_approx(gamma_0 + gamma_1*eta[judge[n]]));
-            outcome[n] ~ bernoulli_logit(beta[case_id[n]] * eta[judge[n]] - alpha[case_id[n]]);
-        }
-    }
-    alpha ~ std_normal();
-    eta ~ std_normal();
-    beta ~ std_normal();
-    gamma_0 ~ std_normal();
-    gamma_1 ~ std_normal();
-}
-"
-
-## Compose Data for 2PL Hurdle
-## Three Outcomes
-
-model_data_hurdle <- model_data %>%
-       mutate(case_id = fct_drop(case_id),
-              judge = fct_drop(judge)) %>%
-tidybayes::compose_data(.n_name = n_prefix("N"))
-
-## Fit Data for 2 PL Hurdle
-
-fit_2PL_hurdle <- stan(
-    model_code = stan_code_hurdle,
-    data = model_data_hurdle,
-    iter = 2000,
-    save_warmup = FALSE
-)
-
-saveRDS(fit_2PL_hurdle, ("data/fit_2PL_hurdle.RDS", sep = "")
-
-# 4. Hurdle Model 1 D (constrained)
-
-stan_code_hurdle_constrained <- "data {
-    int<lower=0> N;
-    int<lower=0> N_case_id;
-    int<lower=1> N_judge;
-    int<lower=-1> outcome[N];
-    int<lower=1> case_id[N];
-    int<lower=1> judge[N];
-    int<lower=1> party_id[N];
-    int<lower=1> N_party_id;
-    int<lower = -1, upper = 1> beta_sign[N_case_id]; //sign
-    int<lower = -1, upper = 1> eta_sign[N_judge];
-    int<lower = 0> eta_nonzero[N_judge];
-}
-parameters {
-    vector[N_case_id] alpha;            // difficulty
-    real<lower=0> eta_pos[N_judge];     // discrimination (+ constraint)
-    real eta_open[N_judge];
-    real<lower=0> beta_pos[N_case_id];  // discrimination (+ constraint)
-    real beta_open[N_case_id];          // discrimination (no constraint)
-    real gamma_0;
-    real gamma_1;
-}
-transformed parameters {
-    real beta[N_case_id]; // discrimination
-    vector[N_judge] eta;                // ability score
-    for (i in 1:N_case_id) {
-         if (beta_sign[i] == 0) beta[i] = beta_open[i];
-         else if (beta_sign[i] == 1) beta[i] = beta_pos[i];
-         else beta[i] = beta_pos[i] * -1;
-     }
-    for (j in 1:N_judge) {
-         if (eta_nonzero[j] == 0) eta[j] = 0;
-         else if (eta_sign[j] == 0) eta[j] = eta_open[j];
-         else if (eta_sign[j] == 1) eta[j] = eta_pos[j];
-         else eta[j] = eta_pos[j] * -1;
-    }
-}
-model {
-    for (n in 1:N) {
-        if (outcome[n] == -1)
-            1 ~ bernoulli(Phi_approx(gamma_0 + gamma_1*eta[judge[n]]));
-        else {
-            0 ~ bernoulli(Phi_approx(gamma_0 + gamma_1*eta[judge[n]]));
-            outcome[n] ~ bernoulli_logit(beta[case_id[n]] * eta[judge[n]] - alpha[case_id[n]]);
-        }
-    }
-    alpha ~ std_normal();
-    eta_pos ~ lognormal(1,1);
-    eta_open ~ std_normal();
-    beta_pos ~ lognormal(1,1);
-    beta_open ~ std_normal();
-    gamma_0 ~ std_normal();
-    gamma_1 ~ std_normal();
-}
-generated quantities {
-    int y_hat[N];
-    real gamma_hat[N];
-    for (n in 1:N) {
-        gamma_hat[n] = Phi_approx(gamma_0 + gamma_1*eta[judge[n]]);
-        if (bernoulli_rng(gamma_hat[n]) == 1)
-            y_hat[n] = -1;
-        else {
-            y_hat[n] = bernoulli_logit_rng(beta[case_id[n]] * eta[judge[n]]- alpha[case_id[n]]);
-        }
-    }
-}
-"
-
-## Constrain Betas
-
-beta_sign <- as.data.frame(fit_2PL_hurdle,
-            pars = "beta") %>%
-            pivot_longer(starts_with("beta"),
-               names_to = c("case_id"),
-               names_pattern = "([\\d]+)",
-               names_transform = list(
-               case_id = readr::parse_number)) %>%
-            group_by(case_id) %>%
-            group_modify(~data.frame(
-                beta = median(.x$value),
-               .lower = quantile(.x$value, .025),
-               .upper = quantile(.x$value, .975)),
-            .keep = TRUE) %>%
-            ungroup(case_id) %>%
-            mutate(beta_sign = sign_function(., lower = .10, upper = .70)) %>%
-            mutate(case_id = factor(case_id)) %>%
-            select(beta_sign)
-
-# Constrain Etas
-
-eta_post <- as.data.frame(fit_2PL_hurdle,
-            pars = "eta") %>%
-            pivot_longer(starts_with("eta"),
-               names_to = c("judge"),
-               names_pattern = "([\\d]{1,3})",
-               names_transform = list(
-               judge = readr::parse_number)) %>%
-            group_by(judge) %>%
-            group_modify(~data.frame(
-                eta = median(.x$value),
-               .lower = quantile(.x$value, .025),
-               .upper = quantile(.x$value, .975)),
-            .keep = TRUE) %>%
-            ungroup(judge)
-
-eta_sign <- eta_post %>%
-            mutate(eta_sign = sign_function(., lower = .01, upper = .80)) %>%
-            mutate(judge = factor(judge)) %>%
-            select(eta_sign)
-
-## Compose Data
-
-model_data_hurdle_constrained <- model_data %>%
-              mutate(case_id = fct_drop(case_id),
-                     judge = fct_drop(judge)) %>%
-              tidybayes::compose_data(.n_name = n_prefix("N")) %>%
-              append(., list(beta_sign = pull(beta_sign,beta_sign),
-                             eta_sign = pull(eta_sign, eta_sign)))
-
-model_data_hurdle_constrained$eta_nonzero <- replicate(n = model_data_hurdle_constrained$N_judge, 
-                                             1)
-model_data_hurdle_constrained$eta_nonzero[which(abs(eta_post$eta) == min(abs(eta_post$eta)))] <- 0
-
-saveRDS(model_data_hurdle_constrained, paste(save,
-        "model_data_hurdle_constrained.RDS", sep = ""))
-
-# Run 2PL Hurdle Constrained
-
-fit_2PL_hurdle_constrained <- stan(
-    model_code = stan_code_hurdle_constrained,
-    data = model_data_hurdle_constrained,
-    iter = 3000,
-    save_warmup = FALSE
-)
-
-saveRDS(fit_2PL_hurdle_constrained, paste(save,
-                                    "fit_2PL_hurdle_constrained.RDS", sep = ""))

@@ -15,7 +15,7 @@ toc: true
 
 This project measures the ideaologies of federal court judges in the Seventh Circuit Court of Appeals and the U.S. District Courts directly under its jurisdiction. By contrast with other recent efforts, my approach uses the outcomes of actual judicial practice - including both final rulings and settlements - to estimate ideal points for each judge along two dimensions. 
 
-In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@martinDynamicIdealPoint2002; @epsteinJudicialCommonSpace2007]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@bonicaCommonspaceScalingAmerican2017]; and (3) treating skeptically judges' in-court descriptions of their own behavior. [@lauderdalePragmaticSocialMeasurement2021]  
+In a literature review, I argue that I improve upon existing attempts to measure judicial idealogy by: (1) describing the ideaologies of judges who practice outside of the U.S. Supreme Court [@martinDynamicIdealPoint2002; @epsteinJudicialCommonSpace2007]; (2) relying on case outcomes and litigant settlements instead of out-of-court behaviors to describe judicial ideaology [@bonicaCommonspaceScalingAmerican2017]; and (3) treating skeptically judges' in-court descriptions of their own behavior. [@lauderdalePragmaticSocialMeasurement2021] 
 
 # Description of Data
 
