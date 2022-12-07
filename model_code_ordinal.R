@@ -162,7 +162,6 @@ fjc_cl_dt$outcome <- pmap_int(fjc_cl_dt, recode_outcome)
 
 ## filter only case types that can be interpreted As liberal/conservative 
 
-
 model_data <- fjc_cl_dt %>%
               filter(nature_of_suit %in% all_cases) %>%
               filter(is.na(outcome) == FALSE) %>%
@@ -178,17 +177,7 @@ model_data <- fjc_cl_dt %>%
                         name = paste(name_first, name_last, sep = " ")) %>%
               na.omit()
 
-# Reduce dataset because of system memory
-
-# sample <- sample(fct_unique(model_data$case_id),
-#                    20000, replace = FALSE)
-
-#model_data <- model_data %>%
-#              filter(case_id %in% sample) %>%
-#              mutate(case_id = fct_drop(case_id),
-#                     judge = fct_drop(judge))
-
-# save key for names
+# save key to use for matching judge names later
 judge_key <- model_data %>%
              distinct(judge, name, party_id) %>%
              mutate(judge = as.numeric(judge))
@@ -200,11 +189,6 @@ model_data <- model_data %>%
 select(judge, case_id, outcome, party_id)
 
 saveRDS(model_data, "data/model_data_ord.RDS")
-
-#model_data_ord_STAN <- model_data %>%
-#mutate(case_id = fct_drop(case_id),
-#       judge = fct_drop(judge)) %>%
-#tidybayes::compose_data(.n_name = n_prefix("N"))
 
 # saveRDS(model_data_ord, "data/model_data_ord_STAN.RDS")
 
@@ -218,9 +202,12 @@ formula_ord_unconstrained <- bf(
 )
 
 priors_ord_unconstrained <- c(
-                            prior("normal(0,1)", class = "sd", group = "judge") +
-                            prior("normal(0, 1)", class = "sd", group = "case_id") +
-                            prior("normal(0, 1)", class = "sd", group = "case_id", dpar = "disc")
+                            prior("normal(0,1)", class = "sd", 
+                                  group = "judge") +
+                            prior("normal(0, 1)", class = "sd", 
+                                  group = "case_id") +
+                            prior("normal(0, 1)", class = "sd", 
+                                  group = "case_id", dpar = "disc")
                             )
 
 fit_ord_unconstrained <- brm(
@@ -294,7 +281,27 @@ saveRDS(model_data_constrained, paste(save, "model_data_constrained.RDS", sep = 
 
 ## Fit constrained 1 Dimensional 2PL model
 
-fit_ord_constrained <- brm(
+formula_ord_constrained <- bf(
+  outcome ~ 1 + (1 |i| case_id) + (1 | judge),
+  disc ~ 1 + (1 |i| case_id)
+)
 
+priors_ord_constrained <- c(
+  prior("normal(0,1)", class = "sd", 
+        group = "judge") +
+    prior("normal(0, 1)", class = "sd", 
+          group = "case_id") +
+    prior("normal(0, 1)", class = "sd", 
+          group = "case_id", dpar = "disc")
+)
+
+fit_ord_constrained <- brm(
+  formula = formula_ord_unconstrained,
+  data = model_data_ord,
+  family = cumulative("probit"),
+  chains = 4,
+  iter = 2000,
+  prior = priors_ord_unconstrained,
+  file = "data/fit_ord_unconstrained"
 )
 
