@@ -1,0 +1,101 @@
+---
+author: Cory Adkins
+date: Draft of Febuary 15, 2023
+title: Judicial Idealogy and Political Polarization
+bibliography: "../references/references_all.bib"
+number-sections: true
+geometry:
+  - margin=1in
+linestretch: 2
+indent: true  
+mainfont: "Minion Pro"
+sansfont: "Source Sans Pro"
+format: pdf 
+---
+
+# Introduction
+
+In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy at .[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research Center survey conducted after the *Dobbs* decision found that more than 50% of Democrat respondents indicated that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@nwPositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision [@nwPositiveViewsSupreme2022].
+
+[^1]: Compare to Roberts' famous claim that "Judges are like umpires" at his confirmation hearing.
+
+Indeed, -- often imagined as politically neutral or, at least, politically insulated - has finally and fully caught up to America's political polarization.
+
+Although an enormous body of evidence attests to the presence of ideology among judges, disagreement persists about its content and importance: in particular, whether it may be described one or several dimensions, and how these dispositions relate to case outcomes. To preview, I briefly review existing attempts to conceptualize and measure judicial ideology. I then present a Bayesian ideal point model.
+
+# Political Polarization
+
+# Judicial Ideology
+
+Bonica and Sen review the primary approaches to measurement of judicial ideology. [@bonicaEstimatingJudicialIdeology2021a] To preview, existing attempts to measure judicial ideology suffer at least one of three limitations: (1) a failure to incorporate or describe the ideologies of judges outside the lower federal and states courts (2); a failure to ; and (3) a failure to incorporate information about case outcomes into the measurement of ideology.
+
+Martin and Quinn... dynamic item response model to model policy preferences of Supreme Court justices over time [@martinDynamicIdealPoint2002a]. Unidimensional preferences measure. Relatively agnostic about (case content), besides using judges as anchor points for identication. The judges were (Harlan, Douglas, Marshall, Brennan, Frankfurter, Fortas, Rehnquist, Scalia, and Thomas). However, as Bonica and Sen have argued, this ignores (selection effects related to the court's docket.)
+
+Coding-based approaches... [@epsteinJudicialCommonSpace2007]
+
+Difficulty justifying the coding. Campaign contributions... [@bonicaCommonspaceScalingAmerican2017]
+
+Difficulty justifying the focus on a single dimension or difficulty identifying multiple dimensions. Idenitication problem comes from Rivers [@rivers2003]. Lauderdale and Clark solve this problem by .
+
+# Data
+
+Until recently, data that links \[judges and decisions\] has been very difficult to obtain, especially for judges outside the Supreme Court.
+
+# Methods
+
+The greatest obstacle to measuring judicial ideology *as it arises in actual legal decisions -* the "facts of the case" are different in every case. Furthermore,
+
+Intuitively,
+
+This intuition also explains why Bayesian analysis . .
+
+In this section, I describe formally how to \[\--\] this by adapting an item-response-model popular in the analysis of roll-call voting to judicial
+
+# Exploratory Factor Analysis
+
+Use of ideal-point approaches to estimate legislator preferences. [@clintonStatisticalAnalysisRoll2004]
+
+## 2PL Model
+
+The typical
+
+$$
+P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi^{-1}(\alpha_i+ \beta_i {\eta_j}^\top)
+$$
+
+$$
+y_{ij} | \eta_j, \alpha_i, \beta_i \sim \text{Bernoulli}(\Psi^{-1}(\alpha_i + \beta_i {\eta_j}^\top))
+$$
+
+-   $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
+-   $\eta_j$ is a $[1 \times d]$ vector of ability parameters
+-   $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
+-   The "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
+
+![](graphics/ppc_fit_2PL_constrained.png)
+
+## Multidimensional 2PL Model with Hurdle
+
+::: hidden
+$$
+P(y_{ij} | \eta_j) = \begin{cases}
+\text{if } s = 0,\Phi(\gamma_0 + \gamma_1 \eta_j) \\
+\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^{-1}(\beta_i \eta_j-\alpha_i))
+\end{cases}
+$$
+:::
+
+-   $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
+-   $\eta_j$ is a $[1 \times d]$ vector of ability parameters
+-   $\gamma_1$ is a $[1 \times d]$ vector of settlement parameters
+-   $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
+
+![](graphics/ppc_2d.png)
+
+![](graphics/2d_eta1.png)
+
+![](graphics/2d_eta2.png)
+
+# Results
+
+# Works Cited
