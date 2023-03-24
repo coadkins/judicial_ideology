@@ -1,14 +1,14 @@
 ---
 author: Cory Adkins
 date: November 15, 2022
-title: Two Dimensions of Judicial Ideaology
+title: Judicial Ideology and Political Polarization
 bibliography: "../references/references_all.bib"
 number-sections: true
 geometry:
   - margin=1in
 linestretch: 2
 indent: true  
-abstract: "A really good paper"
+abstract: "This project introduces a new data-set of judicial decisions in Federal district and appellate courts. I use this data to estimate a new ideal point model for judicial ideology that relies on actual judicial decision-making from behind the bench, and that allows for ideology to diverge across cultural and economic dimensions.I show that Republican and Democratic-appointed justices have drifted rightwards since 1970s, while becoming more polarzied on the cultural dimension over the same time period. Finally, I reflect on the consequences of  polarization in the American legal system."
 ---
 
 # Introduction
@@ -19,7 +19,7 @@ In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of
 
 Although an enormous body of evidence attests to the presence of idealogy among judges, disagreement persists about its content and importance: in particular, whether it may be described one or several dimensions, and how these dispositions relate to case outcomes. To preview, I briefly review existing attempts to conceptualize and measure judicial ideology. I then present a Bayesian ideal point model.
 
-Bonica and Sen review the primary approaches to measurement of judicial ideology. [@bonicaEstimatingJudicialIdeology2021a] To preview, existing attempts to measure judicial idealogy suffer at least one of three limitations: (1) a failure to incorporate or describe the ideaologies of judges outside the lower federal and states courts (2); a failure to ; and (3) a failure to incoporate information about case outcomes into the measurement of ideaology.
+Bonica and Sen review the primary approaches to measurement of judicial ideology. [@bonicaEstimatingJudicialIdeology2021a] To preview, existing attempts to measure judicial idealogy suffer at least one of three limitations: (1) a failure to incorporate or describe the ideaologies of judges outside the lower federal and states courts (2); a failure to ; and (3) a failure to incorporate information about case outcomes into the measurement of ideaology.
 
 # Judicial Ideaology
 
