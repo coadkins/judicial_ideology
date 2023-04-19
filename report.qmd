@@ -1,43 +1,86 @@
 ---
 author: Cory Adkins
-date: November 15, 2022
-title: Two Dimensions of Judicial Ideaology
-bibliography: "../references/references_all.bib"
+date: Draft of Febuary 15, 2023
+title: Judicial Idealogy and Political Polarization
 number-sections: true
 geometry:
   - margin=1in
 linestretch: 2
 indent: true  
-abstract: "A really good paper"
+mainfont: "Source Serif Pro"
+sansfont: "Source Sans Pro"
+format: pdf 
+bibliography: "../references/references_all.bib"
+fontsize: 12pt
 ---
 
 # Introduction
 
-In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy at .[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research Center survey conducted after the *Dobbs* decision found that more than 50% of Democrat respondents indicated that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@nwPositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision [@nwPositiveViewsSupreme2022].
+In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights in the United States, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy.[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research >Center survey conducted after the *Dobbs* decision found that more than 50% of Democrat respondents thought that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@PositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision[@PositiveViewsSupreme2022].
 
-[^1]: Compare to Roberts' famous claim that "Judges are like umpires" at his confirmation hearing.
+[^1]: This is consistent with Roberts' famous claim that "Judges are like umpires" at his confirmation hearing.
 
-Although an enormous body of evidence attests to the presence of idealogy among judges, disagreement persists about its content and importance: in particular, whether it may be described one or several dimensions, and how these dispositions relate to case outcomes. To preview, I briefly review existing attempts to conceptualize and measure judicial ideology. I then present a Bayesian ideal point model.
+One tempting conclusion to draw from *Dobbs* is that the judiciary -- often imagined as politically neutral or, at least, politically insulated -- has finally and fully caught up to the legislative branches in partisan polarization. Indeed, in 21% percent of the Supreme Court's 2021-term decisions, the Justices voted strictly according to the party of their appointing President -- the highest this percentage has been since at least 1953 [@thomson-deveauxJustHowSharp2022]. Public opinion surveys show that the median preference of Supreme Court Justices is much closer to median preferences of the median Republican voter on issues like abortion, health care and civil rights [@jesseeDecadelongLongitudinalSurvey2022].
 
-Bonica and Sen review the primary approaches to measurement of judicial ideology. [@bonicaEstimatingJudicialIdeology2021a] To preview, existing attempts to measure judicial idealogy suffer at least one of three limitations: (1) a failure to incorporate or describe the ideaologies of judges outside the lower federal and states courts (2); a failure to ; and (3) a failure to incoporate information about case outcomes into the measurement of ideaology.
+This paper argues that -- especially outside of the Supreme Court -- polarization among federal judges on "cultural" politics has occurred alongside non-polarization on "economic" politics. On issues like reproductive and LGBTQ rights, the legal profession at large has shifted left. This shift has been countered on the populist right by the appointment of a smaller number of extremist judges to fight in the culture war. On economic politics, judges have shifted right in general, lead by the extreme libertarians of the "Chicago School" and buoyed by a neoliberal interpretation of economic rights shared on both the right and left.
 
-# Judicial Ideaology
+I build this claim on top of a new approach to measuring judicial ideology. Although an enormous body of evidence attests to the presence of ideology among judges, disagreement persists about its content and importance: in particular, whether it may be described one or several dimensions, and how these dispositions impact actual case outcomes. Drawing on the polarization literature, I argue for a two-dimensional measurement which includes both economic and cultural conservatism.
 
-Martin and Quinn... dynamic item response model to model policy preferences of Supreme Court justices over time [@martinDynamicIdealPoint2002a]. Unidimensional preferences measure. Relatively agnostic about (case content), besides using judges as anchor points for identication. The judges were (Harlan, Douglas, Marshall, Brennan, Frankfurter, Fortas, Rehnquist, Scalia, and Thomas). However, as Bonica and Sen have argued, this ignores (selection effects related to the court's docket.)
+To preview, I \[\-\--\] . I then briefly review recent efforts to measure judicial ideology, and criticize these measures as too limited to encompass the scope and effects of the federal judiciary, especially when polarization. I then present my own strategy: a multi-dimensional Bayesian ideal point model that I estimate using a new data-set of judicial votes in Federal district and appellate courts.
+
+I conclude by considering the implications of a polarized judiciary in a system of geographically dispersed judicial authority. Unlike polarized Congresspeople, who can produce national legislative "gridlock" by cancelling each other out, federal judges have great scope for unilateral action within narrow geographic bounds. Even a relatively small number of ideologically extreme judges can have an outsize effect as strategic litigants leverage the rules of jurisdiction to self-sort into favorable fora. In this way, the polarized judiciary resembles not federal but state legislative politics - susceptible to capture by well-organized interests within narrow geographical bounds [@grumbachLaboratoriesDemocracyHow2022].
+
+# Political Polarization and the Judiciary
+
+Summary of polarization
+
+proverbial iron fist in a velvet glove.
+
+Little . Organized groups efforts to Federalist Society, "perhaps the most influential." \[
+
+At the federal level, .
+
+Non-polarization can be just as consequential as polarization.
+
+# Measuring Judicial Ideology
+
+Bonica and Sen review the primary approaches to measurement of judicial ideology [@bonicaEstimatingJudicialIdeology2021]. To preview, existing attempts to measure judicial ideology suffer at least one of three limitations: (1) a failure to incorporate or describe the ideologies of judges outside the lower federal and states courts (2); a failure to ; and (3) a failure to incorporate information about case outcomes into the measurement of ideology.
+
+Martin and Quinn... dynamic item response model to model policy preferences of Supreme Court justices over time[@martinDynamicIdealPoint2002]. Unidimensional preferences measure. Relatively agnostic about (case content), besides using judges as anchor points for identification. The judges were (Harlan, Douglas, Marshall, Brennan, Frankfurter, Fortas, Rehnquist, Scalia, and Thomas). However, as Bonica and Sen have argued, this ignores (selection effects related to the court's docket).
 
 Coding-based approaches... [@epsteinJudicialCommonSpace2007]
 
 Difficulty justifying the coding. Campaign contributions... [@bonicaCommonspaceScalingAmerican2017]
 
-Difficulty justifying the focus on a single dimension or difficulty identifying multiple dimensions. Idenitication problem comes from Rivers [@rivers2003]. Lauderdale and Clark solve this problem by .
+Difficulty justifying the focus on a single dimension or difficulty identifying multiple dimensions. Identification problem comes from Rivers [@riversIdentificationMultidimensionalSpatial2003]. Lauderdale and Clark solve this problem by [@lauderdaleScalingPoliticallyMeaningful2014].
 
 # Data
 
+Until recently, data that links \[judges and decisions\] has been very difficult to obtain, especially for judges outside the Supreme Court.
+
+Coding of decisions available in the appendix.
+
+# Methods
+
+Two great obstacles face any attempt to measure greatest obstacle to measuring judicial ideology *as it arises in actual legal decisions.* The first is that each case is different. While cases fall under broad categories, like civil rights or antitrust, which have clear political consequences, the political meaning of any case in the abstract is always ambiguous. For instance, even the most economically conservative judge sometimes rules against the most egregious monopolies. Without granular data that addresses these case nuances, we are unable to control for important confounders in the relationship between judicial ideology and case outcomes.
+
+Furthermore, which cases even make it to a judge for final decision depend on the litigant's choices about whether to settle their claims - a choice that is itself impacted by the assignment of the judge after the case is filed [@priestSelectionDisputesLitigation1984]. This creates a selection effect whereby . Furthermore, appellate and--especially-- supreme court justices exercise substantial discretion over which cases they decide to rule on, and refuse to hear many more cases
+
+My approach to these obstacles . For instance, if a judge frequently rules against
+
+In this section, I describe formally how to \[\--\] this by adapting an item-response-model popular in the analysis of roll-call voting to judicial
+
+Both the circuit's jurisdictional rules and previous empirical studies reveal relatively low levels of forum-shopping
+
 # Exploratory Factor Analysis
+
+I employ an ideal point model that estimates the ideological position of each justice based on their votes and rulings on all cases in their career,
 
 Use of ideal-point approaches to estimate legislator preferences. [@clintonStatisticalAnalysisRoll2004]
 
 ## 2PL Model
+
+The typical
 
 $$
 P(y_{ij} | \eta_j, \alpha_i, \beta_i) \sim \Psi^{-1}(\alpha_i+ \beta_i {\eta_j}^\top)
@@ -47,31 +90,11 @@ $$
 y_{ij} | \eta_j, \alpha_i, \beta_i \sim \text{Bernoulli}(\Psi^{-1}(\alpha_i + \beta_i {\eta_j}^\top))
 $$
 
--   $\beta_i$ is a $[1 \times d]$ vector of discrimination parameters
--   $\eta_j$ is a $[1 \times d]$ vector of ability parameters
--   $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
--   The "logit" link function, $\Psi = \log(\frac{1}{1-\mu})$
-
-![](graphics/ppc_fit_2PL_constrained.png)
-
-![](graphics/ci_constrained.png)
-
-## 2PL Model with Hurdle
-
-::: hidden
-$$
-P(y_{ij} | \eta_j) = \begin{cases}
-\text{if } s = 0,\Phi(\gamma_0 + \gamma_1 \eta_j) \\
-\text{if } s = 1, (1-\Phi(\gamma_0 +\gamma_1 \eta_j)) \times (\Psi^{-1}(\beta_i \eta_j-\alpha_i))
-\end{cases}
-$$
-:::
-
-![](graphics/ppc_2PL_hurdle_constrained.png)
-
-![](graphics/ci_hurdle_constrained.png)
+With two dimensions *d* and a hurdle. [@kubinecIdealstanPackageIdeal2018]
 
 ## Multidimensional 2PL Model with Hurdle
+
+The hurdle ...
 
 ::: hidden
 $$
@@ -87,22 +110,8 @@ $$
 -   $\gamma_1$ is a $[1 \times d]$ vector of settlement parameters
 -   $\Psi^{-1}(\mu)$ is the inverse logit function, $\frac{1}{1+\exp(-\mu)}$
 
-![](graphics/ppc_2d.png)
+# Results and Discussion
 
-![](graphics/2d_eta1.png)
-
-![](graphics/2d_eta2.png)
-
-# Results
-
-# Confirmatory Factor Analysis
-
-Constrain the analysis by assuming that each latent factor contributes to one and only one indicator.[@lauderdalePragmaticSocialMeasurement2021] This permits the use of hypothesis testing
-
-This two-step approach has been used to study latent ideological.[@panChinaIdeologicalSpectrum2018a]
-
-# Results
-
-# Extensions and Conclusion
+\[To be discussed\]
 
 # Works Cited

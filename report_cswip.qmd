@@ -16,7 +16,7 @@ fontsize: 12pt
 
 # Introduction
 
-In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights in the United States, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy.[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research Center survey conducted after the *Dobbs* decision found that more than 50% of Democrat respondents thought that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@PositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision[@PositiveViewsSupreme2022].
+In the wake of the *Dobbs vs Jackson* ruling that ended the federal guarantee of abortion rights in the United States, the Chief Justice of the U.S. Supreme Court Court John Roberts defended the Court's legitimacy.[^1] Despite Roberts' arguments, many Americans read the controversial decision as an inappropriate intertwining of legal decision-making and ideological bias. For instance, a Pew Research >Center survey conducted after the *Dobbs* decision found that more than 50% of Democrat respondents thought that the Supreme Court did a poor job of keeping their political views out of how they decide cases [@PositiveViewsSupreme2022]. This is nearly double the share of Democratic respondents who reported the same view before the *Dobbs* decision[@PositiveViewsSupreme2022].
 
 [^1]: This is consistent with Roberts' famous claim that "Judges are like umpires" at his confirmation hearing.
 
