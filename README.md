@@ -4,5 +4,5 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of this repository is to ...
+This repository contains scripts for analyzing and visualizing data for "Lopsided Judicial Polarization."
 
