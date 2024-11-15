@@ -4,7 +4,6 @@
 .Ruserdata
 reports/
 scratch/
-notebooks/
 figures/
 .*.Rproj
 .Rproj.user
