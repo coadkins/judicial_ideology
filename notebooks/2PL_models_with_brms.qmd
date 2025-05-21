@@ -3,8 +3,12 @@ author: Cory
 title: 2PL Models with BRMS
 date: 11/15/2024
 execute:
-  cache: TRUE 
+  cache: FALSE 
   echo: FALSE
+output:
+  pdf_document:
+    includes:
+      in_header: 'gt_packages.sty'
 ---
 
 # Load packages and data
@@ -62,6 +66,7 @@ dbDisconnect(db_con, shutdown = TRUE)
 #| output: FALSE
 #| message: FALSE
 #| warning: FALSE
+#| cache: TRUE
 formula_rasch <- bf(outcome ~ 1 + (1 | case_id) + (1 | judge_id))
 
 brms_fit_rasch <- brm(formula = formula_rasch,
@@ -95,7 +100,7 @@ tibble(var = names(rhat), rhat = unname(rhat)) |>
 Trace Plot
 ```{r}
 #| echo: TRUE
-plot(brms_fit_rasch, variable = c("b_eta_Intercept"))
+plot(brms_fit_rasch)
 ```
 
 Posterior Predictive Check:
@@ -120,6 +125,7 @@ This fixes the estimates of $\beta_i$ to be positive.
 #| output: FALSE
 #| message: FALSE
 #| warning: FALSE 
+#| cache: TRUE
 formula_2pl <- bf(outcome ~ 1 + exp(logbeta)*eta,
                   eta ~ 1 + (1 |judge_id), 
                   logbeta ~ 1 + (1 |case_id),
@@ -181,7 +187,8 @@ legend("topright", legend = "Observed P(Y=1)", col = "steelblue", lty = 1,
 #| echo: TRUE
 #| output: FALSE
 #| message: FALSE
-#| warning: FALSE #| 
+#| warning: FALSE  
+#| cache: TRUE
 # fixed/population-level effect 
 # for party of appointing president
  
@@ -249,6 +256,7 @@ legend("topright", legend = "Observed P(Y=1)", col = "steelblue", lty = 1,
 #| output: FALSE 
 #| message: FALSE
 #| warning: FALSE 
+#| cache: TRUE
 formula_2pl_in <- bf(outcome ~ 1 + exp(logbeta)*eta + alpha,
                   eta ~ 1 + (1 |judge_id) + party_of_appointing_president, 
                   logbeta ~ 1 + (1 |case_id),
@@ -271,8 +279,7 @@ brms_fit_2pl_in <- brm(formula = formula_2pl_cov,
 qsave(x = brms_fit_2pl_cov, here("data", "brms_fit_2pl_in.qs"))
 ```
 
-Priors:priors_2pl <- prior("normal(0, 3)" , class = "b", nlpar = "eta") +
-  prior("normal(0, 3)", class = "b", nlpar = "logbeta")
+
 ```{r}
 #| echo: TRUE
 #| output: TRUE 

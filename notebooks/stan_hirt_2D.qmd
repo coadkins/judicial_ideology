@@ -1,0 +1,238 @@
+---
+title: "hIRT model in STAN"
+author: Cory Adkins
+date: May 21, 2025
+format: 
+    pdf
+---
+# Model
+
+I am trying to follow the model specification in Zhou (2019) (who uses a logit link function; the same model struggles to initialize with the probit specification). However, I am extending it to accomodate a multidimensional latent space by assigning a multivariate normal prior to the parameter $\theta_i$. I am most interested in $\mu_{g[i]}$
+
+### Model of case outcomes:
+$$\mathrm{Pr}(Y_{ij} = h) = \Psi^{-1}(\alpha_j + \beta_j^\intercal \theta_i^*)\text{ for }h = 0,1$$
+
+- $Y_{ij}$ is the binomial outcome 0 or 1 for judge $i$ hearing case $j$.
+- $\Psi^{-1}$ is the inverse logit function.
+- $\alpha_j$ is the case-specific "difficulty" parameter.
+- $\beta_j$ is the case-specific "discrimination" parameter. Because of the multidimensional latent space, $\beta_j$ is modeled with $\mathcal{D}$ dimensions.
+- $\theta_i$ is the judge-specific "ability" parameter in my case, this is the ideology score. Because of the multidimensional latent space, $\theta_i$ is modeled with $\mathcal{D}$ dimensions. To aid with identification, $\theta_i = \theta_i^*$ except for judges belonging to the first cohort, where $\theta_i$ is demeaned, centered and orthanongalized across factors (see below).
+
+### Model of ideology scores:
+$$\theta_i \sim \mathcal{N}_{\mathcal{D}}(\mu_{g[i]}, \Sigma_{\theta_{g[i]}})$$
+
+The basic idea behind this model is that every group of judicial appointees has its ideology scores drawn from a distinct, group-level multivariate normal distribution. However, the means and variances of the group-level distributions are correlated with each other based on shared group-level covariates, especially political party. 
+
+### Formula for mean ideology scores for each group:
+$$\mu_{g[i]} = \tilde{x}_{g[i]}\Gamma$$
+
+### Formula for variance of ideology scores for each group:
+$$\Sigma_{\theta_{g[i]}} = LL^\intercal$$
+$$L = \text{diag}(\sigma_{\theta_{g[i]}}) \cdot L_{\text{corr}}$$
+$$L_{\text{corr}} \sim \text{LKJCholesky}(2)$$
+$$\sigma_{\theta_{g[i]}} = \exp(\tilde{z}_{g[i]} \lambda)$$
+
+- $\Sigma_{\theta_{g[i]}}$ is parameterized as the product of a Cholesky factor and its inverse. The Stan program can sample from Cholesky factors much more efficienty than from undecomposed matrices.
+- $L$ is the Cholesky factor of $\Sigma_{\theta_{g[i]}}$. L is the product of the matrix with $\sigma_{\theta_{g[i]}}$ as its diagonal and a correlation matrix, $L_{\text{corr}_{g[i]}}$. $L_{\text{corr}_{g[i]}}$ is distributed according  to the LKJ Cholesky distribution, where the modal value is the identity matrix, implying no correlation among the dimensiosn of the latent factors. [^1] 
+- $\tilde{z_{g[i]}}$ is a $[1 \times J]$ row vector of judge-level covariates predicting $\Sigma_{g[i]}$. In my case, this is an intercept and a series of dummy variables that represent the four-year Presidential term in which the judge was appointed. This allows for heteroskedastic variances across cohorts. I use "one-hot encoding" to transform the cohort categories into dummy variables. 
+- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In my case, this is an intercept, a dummy variable for the party of the appointing President, the four-year Presidential term in which the judge was appointed, and an interaction of party and appointment term.  
+- $\Gamma$ is a $[\mathcal{D} \times K]$ matrix of parameters predicting the mean value of $\theta_i$ for each group, $\mu_{g[i]}$. 
+- $\Lambda$ is $[\mathcal{D} \times J]$ matrix of parameters predicting the covariance matrix for each group, $\Sigma_{\theta_{g[i]}}$.
+
+I employ the identification constraints proposed by Berwick and Caughey (2024): 
+
+(1) $\sum_{i=1}^g \gamma^\intercal \tilde{x}_i = 0$. Zero mean group ideal points.
+
+(2) $\sum_{i=1}^g \lambda^\intercal \tilde{z}_i = 0$. Unit variance group ideal points. 
+
+(3) $\Sigma_{g[i]} = \mathcal{I}_{D}$. Orthangonal factors. 
+
+I achieve (1)-(3) in the STAN code by left-multiplying the vector $\theta_{g[i]}$ by the Cholesky decomposition of the inverse of the column-wise covariance matrix $\Sigma_{g[i]}$, only for the first appointment cohort.
+
+(4) $\beta_j = 0$ for $\mathcal{D}-1$ cases. Rotation invariance.
+ 
+(5) $\beta_j > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $mathcal{D}$.
+
+I do not do this in the Stan code - instead, I plan to use post-estimation "Rotation Sign Permutation" to restrict the $\beta_j$.
+
+# Estimation
+To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$. This strategy is described in the [STAN manual]<https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization> as a method for improving convergence in hierarchical models.
+
+# Simulation
+
+To validate this approach, I generated a simulated data set consistent with my theory. 
+
+![](../graphics/2D_corplot_n.png)
+
+# Validation
+## Parameter Estimates
+![](../graphics/theta_hat.png)
+
+## Trace Plots
+![](../graphics/trace_plots.png)
+
+## Posterior Predictive Checks
+![](../graphics/ppc_2D.png)
+
+# STAN code
+
+```{stan}
+#| label: stan code
+#| eval: FALSE 
+functions {
+  matrix whiten(matrix XX) {
+    /* De-means and 'whitens' (cov = I) XX */
+    matrix[rows(XX), cols(XX)] DM;
+    matrix[cols(XX), cols(XX)] SS;
+    matrix[cols(XX), cols(XX)] PP;
+    matrix[cols(XX), cols(XX)] WW;
+    for (d in 1:cols(XX)) {
+      DM[, d] = XX[, d] - mean(XX[, d]); /* de-mean each column */
+    }
+    SS = crossprod(DM) ./ (rows(XX) - 1.0); /* covariance of XX */
+    PP = inverse_spd(SS); /* precision of XX */
+    WW = cholesky_decompose(PP); /* Cholesky decomposition of precision */
+    return DM * WW; /* de-meaned and whitened XX */
+  }
+}
+
+data {
+  int<lower=1> N;                                 // number of outcomes
+  int<lower=1> N_case_id;                         // number of cases
+  int<lower=1> N_judge;                           // number of judges
+  int<lower=1> D;                                 // number of dimensions for theta
+  int<lower=1> G;                                 // number of groups
+  int<lower=1> K;                                 // number of covariates to model group mean
+  int<lower=1> J;                                 // number of covariates to model group sd
+  array[N] int<lower=0, upper=1> outcome;
+  array[N] int<lower=1, upper=N_judge>  ii;       // tracks judge for obs. n
+  array[N]  int<lower=1, upper=N_case_id> jj;     // tracks case for obs. n
+  array[N_judge] int<lower=1, upper=G> group_id;  // tracks group for judge i 
+  matrix[G, K] x;                                // party, cohort and intercept to model group mean
+  matrix[G, J] z;                                // cohort and intercept to model group sd
+}
+
+parameters { 
+  matrix[N_judge, D] theta_raw;               // ability score 
+  matrix[D, K] gamma;                         // coef. for mu_theta predictors 
+  matrix[D, J] lambda;                        // coef. for sigma_theta predictors 
+  vector[N_case_id] alpha_raw;                // difficulty score 
+  real mu_alpha; 
+  real<lower=0> sigma_alpha; 
+  array[N_case_id] row_vector[D] beta_raw;    // discrimination score
+  row_vector[D] mu_beta;                      // common mean for all disc. score 
+  cov_matrix[D] sigma_beta;                   // common vcov matrix for all disc. score 
+  cholesky_factor_corr[D] L_corr;             // cholesky factor of correlation matrices
+}
+
+transformed parameters {
+  matrix[N_judge, D] theta;
+  vector[N_case_id] alpha;
+  array[N_case_id] row_vector[D] beta;
+  array[G] row_vector[D]  mu_theta;                  // calc. group-level mean of ability score
+  array[G] vector[D] sigma_theta;                // calc. group-level vcov for ability score
+  array[G] cholesky_factor_cov[D] L_Sigma_theta; // array of cholesky factors of variance matrices
+
+  for (g in 1:G) {
+    mu_theta[g] = x[g, ]*gamma';  
+  }
+  // covariance matrix is modeled using Cholesky factor
+  // construct the Cholesky factor of  cov. matrix for each group
+for (g in 1:G) {
+  sigma_theta[g] = exp(lambda*z[g]');
+  L_Sigma_theta[g] = diag_pre_multiply(sigma_theta[g], L_corr);
+}
+// "whiten" theta for first group only
+// "grouped" operations are tedious in Stan
+  theta = theta_raw; // initialize theta as a copy of theta_raw 
+  // iterate across each group
+  for (g in 1:G) {
+  // count N in each group
+    int n_g = 0;
+    for (i in 1:N_judge) {
+      if (group_id[i] == g) {
+	  n_g += 1;
+	}
+    }
+    matrix[n_g, D] X_g; // placeholder matrix to store transformed theta_raw for each group
+    // Fill the group matrix
+    int idx = 1;
+    for (i in 1:N_judge) {
+      if (group_id[i] == g) {
+	X_g[idx] = theta[i];
+	idx += 1;
+      }
+    }
+    // "whiten" the matrix
+    matrix[n_g, D] X_g_whitened;
+    if (g == 1) {
+    X_g_whitened = whiten(X_g);
+  } else {
+    X_g_whitened = X_g;
+  }
+    // put the transformed values back into the complete matrix
+    idx = 1;
+    for (i in 1:N_judge) {
+      if (group_id[i] == g) {
+	theta[i] = X_g_whitened[idx];
+	idx += 1;
+      }
+    }
+  }
+// non-centered parameterization   
+// implies: beta ~ normal(mu_beta, sigma_beta)
+  for (n in 1:N_case_id) {
+beta[n] = mu_beta + beta_raw[n]*sigma_beta;  
+  }
+alpha = mu_alpha + sigma_alpha * alpha_raw;
+}
+
+model {
+// Priors for group and judge parameters
+// prior for group-level mean predictors
+  for (d in 1:D) {
+  gamma[d, ] ~ normal(0,1); 
+}
+// prior for group level SD predictors
+  L_corr ~ lkj_corr_cholesky(2.0); 
+  for (d in 1:D) {
+  lambda[d, ] ~ normal(0,1); 
+} 
+
+  for (i in 1:N_judge) {
+    theta_raw[i] ~ multi_normal_cholesky(mu_theta[group_id[i], ],
+					 L_Sigma_theta[group_id[i]]); //sample judge-level ability scores
+  } 
+
+// Priors for case-specific parameters
+beta_raw ~ multi_normal(mu_beta, sigma_beta);
+alpha_raw ~ std_normal();
+mu_alpha ~ std_normal();
+sigma_alpha ~ cauchy(0, 2.5);
+sigma_beta ~ inv_wishart(D, diag_matrix(rep_vector(1.0, 2))); 
+mu_beta ~ std_normal();
+// Model of outcomes 
+for (n in 1:N) {
+    outcome[n] ~ bernoulli_logit(beta[jj[n]] *
+                       theta[ii[n]]' + alpha[jj[n]]);
+}
+}
+generated quantities {
+    vector[N] y_hat;
+    for (n in 1:N) {
+     y_hat[n] = bernoulli_rng(inv_logit((beta[jj[n]] * theta[ii[n]]' + alpha[jj[n]])));
+    }
+}
+```
+
+# Bibliography 
+
+Berwick, Elissa and Caughey, Devin. "Dynamic Mulitidimensional Scaling with Aggregate Data: An Ordinal Group Level IRT Approach".
+
+Lewandowski, Daniel, Dorota Kurowicka, and Harry Joe. "Generating random correlation matrices based on vines and extended onion method." Journal of multivariate analysis 100, no. 9 (2009): 1989-2001.
+
+Stan Functions Reference, Version 2.36. Stan Development Team. Available at, https://mc-stan.org/docs/2_36/functions-reference/.
+
+Zhou, Xiang. "Hierarchical item response models for analyzing public opinion." Political Analysis 27, no. 4 (2019): 481-502.
+
+[^1]: This approach is discussed in the Stan Functions Reference, "Covariance Matrix Distributions" and in Lewandowski, et al. (2009)

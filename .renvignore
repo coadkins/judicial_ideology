@@ -1,12 +1,2 @@
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-reports/
-scratch/
-notebooks/
-figures/
-.*.Rproj
-.Rproj.user
-articles/
-_targets/
+*
+!/notebooks/hIRT_exercise.qmd

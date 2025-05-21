@@ -1,0 +1,287 @@
+---
+title: ""
+output:
+  pdf_document:
+    includes:
+      in_header: 'gt_packages.sty'
+---
+
+```{r}
+#| label: load packages
+#| echo: FALSE 
+suppressPackageStartupMessages(library(brms, quietly = TRUE))
+suppressPackageStartupMessages(library(dplyr, quietly = TRUE))
+suppressPackageStartupMessages(library(here, quietly = TRUE))
+suppressPackageStartupMessages(library(gt, quietly = TRUE))
+suppressPackageStartupMessages(library(MASS, quietly = TRUE))
+suppressPackageStartupMessages(library(purrr, quietly = TRUE))
+suppressPackageStartupMessages(library(tidyr, quietly = TRUE))
+cmdstanr::set_cmdstan_path("/home/cory/git/cmdstan/")
+```
+# Model
+
+$$Pr(Y_ij) = \Phi^{-1}(\alpha_j + \beta_j\Theta_i) $$
+$$\Theta_i \sim N(\mu_i, \sigma_i^2)$$
+$$\mu_i = \gamma^\intercal \tilde{x}_i$$
+$$log \sigma^2_i = \lambda^\intercal \tilde{z}_i$$
+
+
+- $\Theta_i$ is the judge-level ideology score (analagous to the "ability" parameter).
+- $\Psi^{-1}$ is the probit function.
+- $\alpha_j$ is the case "difficulty" parameter
+- $\beta_j$ is the case "discrimination" parameter
+- $\tilde{x}_i$ is a tranformed column vector of judge-level covariates predicting $\mu_i$. In my case, this is a dummy variable for the party of the appointing President and a dummy variable for the four-year Presidential term in which the judge was appointed. 
+  'transformed' = covariates plus an intercept
+- $\tilde{z_i}$ is a transformed column vector of judge-level covariates predicting $\o_i^2$ vector of judge-level covariates predicting $\o_i^2$. In my case, this is a dummy-variable for the four-year Presidential term in which the judge was appointed.
+  'transformed' = covariates plus an intercept
+
+# Simulate Data
+
+I simulate ideology scores for 1200 judges. Scores for Democrat and Republican appointed judges are drawn from different distributions, but the mixture of both distributions has mean 0 and standard deviation 1. $\Theta_2$ drifts right over time.
+
+```{r}
+#| label: simulate quantity of interest 
+
+# simulated ideology scores for each presidential term
+# drawn from bimodal beta distribution 
+# that becomes less bimodal over time 
+set.seed(02139)
+
+# size variables 
+n_cohort <- 12
+party <- rbinom(12, size = 1, prob = .5)
+time <- 1:n_cohort
+n_judge <- 1200
+n_cases <- 100000
+
+# draw theta 1
+draw_theta_1 <- function(n, party) {
+  if(party == 0) {
+    y = rnorm(n, 1, .5)
+  }
+  else if(party == 1) {
+    y = rnorm(n, -1, .5)
+  }
+  return(y)
+}
+
+## sim theta_1 for 1000 judges 
+theta_1 <- Map(draw_theta_1, 
+               party = party, 
+               MoreArgs = list(n = (n_judge/n_cohort)))
+
+# draw theta 2
+draw_theta_2 <- function(n, party, time) {
+  if(party == 0) {
+    y = rnorm(n, 1 + (1/n_cohort), .5)
+  }
+  else if(party == 1) {
+   y = rnorm(n, -1 + (1/n_cohort) * time, .5 + (.5/n_cohort)*time) 
+  }
+  return(y)
+}
+## sim theta_2 for 1000 judges
+theta_2 <- Map(draw_theta_2, 
+               party = party,
+               time = time,
+               MoreArgs = list(n = n_judge/n_cohort))
+```
+
+\newpage
+The simulated judge ideology scores for $\Theta_1$ do not drift right over time, but the scores for $\Theta_2$ do. 
+
+```{r}
+#| label: plot ideology scores
+#| echo: FALSE
+
+# clean up lists for plot
+names(theta_1) <- as.character(1:12)
+theta_1 <- stack(theta_1)
+
+names(theta_2) <- as.character(1:12)
+theta_2 <- stack(theta_2)
+
+theta_df <- data.frame(year = theta_1$ind, theta_1 = theta_1$values, theta_2 = theta_2$values)
+
+par(mfrow=c(1,2))                         # two panels per plot
+plot(theta_df$year, theta_df$theta_1, type = "p", col = "blue", 
+main = "Theta_1 No Drift Over Time", cex.main = 1)
+plot(theta_df$year, theta_df$theta_2, type = "p", col = "blue",
+main = "Theta_2 Drifts Right Over Time", cex.main = 1) 
+```
+
+Then I simulate binomial outcomes for 100000 cases by randomly assigning case types, difficuly parameters and discrimination parameters, and then drawing from a binomial distribution defined by the inverse logit. Judges with lower $\Theta_1$ and $\Theta_2$ scores are more likely to rule '0'.
+
+```{r}
+# add judge ids
+theta_df["judge_id"] <- 1:dim(theta_df)[1]
+# add back in party
+theta_df <- theta_df |>
+  left_join(data.frame(year = factor(time), party = party), by = "year")
+
+draw_case <- function(theta_1, theta_2) {
+  case_type <- rbinom(n = 1, size = 1, prob = .5)
+  alpha <- rnorm(1, 0, 1) 
+  beta <- rnorm(1, 0, 1)
+  if (case_type == 1) {
+    linear_func <- alpha+beta*theta_1
+  } else
+    if (case_type == 0) {
+    linear_func <- alpha+beta*theta_2
+  }
+  link_func <- 1 / (1 + exp(-(linear_func)))  
+
+  y_out <- Map(rbinom, prob = link_func, MoreArgs = list(n = 1, size = 1))
+  y_out <- unlist(y_out)
+  return(list(y_out, case_type))
+}
+
+draw_panel <- function(case_id){
+  panel <- theta_df[sample(1:n_judge, size = 3), ]
+  case <- draw_case(panel$theta_1, panel$theta_2)
+  panel$outcome <- case[[1]]
+  panel$type <- case[[2]]
+  panel$case_id <- case_id
+  return(panel)
+}
+
+cases_df <- Map(draw_panel, case_id = 1:n_cases) |>
+  list_rbind()
+
+saveRDS(cases_df, here("data", "sim_data.RDS"))
+```
+
+# Data Transformation 
+
+There are a few obstacles to fitting this model that relate to data wrangling.
+
+- hIRT is conceptualized as modeling survey responses. Treating each case as survey response doesn't work - the algorithm requires more judges (1200) than cases(100000) 
+
+- hIRT requires at least two 'survey items', so treating every case as one gigantic 'survey item' is out of the question. 
+
+- Using two big survey items - "economic" and social - results in a "computationally singular" system. 
+
+- The actual data has case categories ("civli rights", "environmental", etc.) that could be aggregated to use as survey items.
+
+As a first solution, I am arbitrarily splitting the cases into 50 categories (with only cases from economic or social $\Theta_i$ in each category)
+
+```{r}
+library(hIRT)
+
+# assign categories
+cases_df <- cases_df |>
+  mutate(survey_item = case_when(type == 0 ~ sample(1:25, dim(cases_df)[1], replace = TRUE),
+                                 type == 1 ~ sample(26:50, dim(cases_df)[1], replace = TRUE)))
+
+# transform data to wide format
+cases_wide <- cases_df |>
+  dplyr::select(-c("theta_1", "theta_2", "type")) |>
+  pivot_wider(id_cols = c(judge_id, year, party, case_id),
+              names_from = survey_item, values_from = c(outcome))
+
+y <- cases_wide[, -(1:4)]
+x <- model.matrix(~ party + year, cases_wide)
+z <- model.matrix(~ year, cases_wide)
+```
+
+# Fit hIRT Model
+```{r}
+#| eval: FALSE
+fit <- hgrm(y, x, z)
+```
+
+There are a few obstacles to fitting this model:
+
+- hIRT is conceptualized as modeling survey responses. Treating each case as survey response doesn't work - the algorithm requires more judges (1200) than cases(100000) 
+
+- hIRT requires at least two 'survey items', so treating every case as one gigantic 'survey item' is out of the question. 
+
+- Using two big survey items - "economic" and social - results in a "computationally singular" system. 
+
+- The actual data has case categories ("civli rights", "environmental", etc.) that could be aggregated to use as survey items.  
+
+- How does hIRT handle NA values? It doesn't seem to have a problem with NA values in general.
+
+```{r}
+#| label: hIRT NA values test
+# add in some missing values to the example
+nes_econNA <- nes_econ2008
+nes_econNA[sample(1:2268, 3), 4:6] <- NA
+
+y <- nes_econNA[, -(1:3)]
+x <- model.matrix( ~ party * educ, nes_econNA)
+
+# predictors for the variance of economic ideology
+z <- model.matrix( ~ party, nes_econNA)
+
+# fitting a hierarhical graded response model
+nes_m1 <- hgrm(y, x, z)
+```
+
+# Fit brms model
+
+```{r}
+#| label: brms model with 
+#| echo: TRUE
+#| output: FALSE 
+#| message: FALSE
+#| warning: FALSE 
+#| cache: TRUE
+
+formula_2pl_in <- bf(outcome ~ 1 + exp(logbeta)*eta + alpha,
+                  eta ~ 1 + (1 |judge_id) + party + year, 
+                  logbeta ~ 1 + (1 |case_id),
+                  alpha ~ (1 | case_id),
+                  nl = TRUE)
+
+priors_2pl_in <- prior("normal(0, 1)" , class = "b", nlpar = "eta") +
+  prior("normal(0, 1)", class = "b", nlpar = "logbeta")
+
+brms_fit_2pl_in <- brm(formula = formula_2pl_in,
+                   data = cases_df,
+                   prior = priors_2pl_in,
+                   family = "bernoulli",
+                   backend = "cmdstanr",
+                   cores = 4,
+                   warmup = 1000,
+                   iter = 2000)
+```
+
+
+```{r}
+#| label: print priors
+#| echo: TRUE
+#| output: TRUE 
+gt(get_prior(brms_fit_2pl_in)) |> as_latex()
+```
+
+Rhat:
+```{r}
+#| label: print rhat values
+#| echo: TRUE
+rhat <- brms::rhat(brms_fit_2pl_in)
+tibble(var = names(rhat), rhat = unname(rhat)) |>
+  slice_max(rhat, n = 10)
+```
+
+Trace Plot:
+
+```{r}
+#| label: print trace plots
+plot(brms_fit_2pl_in, variable = c("b_eta_Intercept", "b_logbeta_Intercept",
+"b_eta_party_of_appointing_presidentRepublican"))
+```
+
+Posterior Predictive Check:
+```{r}
+#| label: print posterior predictive check
+#| echo: TRUE
+y_2pl_in <- mean(standata(brms_fit_2pl_in)[["Y"]])
+yrep_2pl_in <- rowMeans(posterior_epred(brms_fit_2pl_in))
+
+hist(yrep_2pl_in, main = "Posterior Predictive Check", 
+xlab = "Posterior Predictive P(Y = 1) (4000 runs)")
+abline(v = y_2pl_in, col = "steelblue", lwd = 2)
+legend("topright", legend = "Observed P(Y=1)", col = "steelblue", lty = 1,
+       cex = .7)
+```
