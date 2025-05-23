@@ -62,42 +62,7 @@ for (g in 1:G) {
   L_Sigma_theta[g] = diag_pre_multiply(sigma_theta[g], L_corr);
 }
 // "whiten" theta for first group only
-// "grouped" operations are tedious in Stan
-  theta = theta_raw; // initialize theta as a copy of theta_raw 
-  // iterate across each group
-  for (g in 1:G) {
-  // count N in each group
-    int n_g = 0;
-    for (i in 1:N_judge) {
-      if (group_id[i] == g) {
-	  n_g += 1;
-	}
-    }
-    matrix[n_g, D] X_g; // placeholder matrix to store transformed theta_raw for each group
-    // Fill the group matrix
-    int idx = 1;
-    for (i in 1:N_judge) {
-      if (group_id[i] == g) {
-	X_g[idx] = theta[i];
-	idx += 1;
-      }
-    }
-    // "whiten" the matrix
-    matrix[n_g, D] X_g_whitened;
-    if (g == 1) {
-    X_g_whitened = whiten(X_g);
-  } else {
-    X_g_whitened = X_g;
-  }
-    // put the transformed values back into the complete matrix
-    idx = 1;
-    for (i in 1:N_judge) {
-      if (group_id[i] == g) {
-	theta[i] = X_g_whitened[idx];
-	idx += 1;
-      }
-    }
-  }
+  theta = whiten(theta_raw); 
 // non-centered parameterization   
 // implies: beta ~ normal(mu_beta, sigma_beta)
   for (n in 1:N_case_id) {
