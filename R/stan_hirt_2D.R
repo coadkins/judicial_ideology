@@ -109,35 +109,24 @@ theta_raw_list <- Map(
   )
 )
 
-# vectorize theta_ij_whiten over each group
-# demean and "whiten" thetas for year 1
-theta_whitened_list <- theta_raw_list
-theta_whitened_list[[1]] <- theta_ij_whiten(theta_raw_list[[1]])
+# "whiten" the raw simulated theta
+theta_whitened_matrix <- theta_ij_whiten(do.call(rbind, theta_raw_list))
 
-# transform thetas into a dataframe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
-theta_df <- data.frame()
-
-for (i in seq_along(theta_whitened_list)) {
-  # add party/year
-  add_cols <- cbind.data.frame(year[i], theta_whitened_list[[i]])
-  # add on to df
-  theta_df <- rbind.data.frame(theta_df, add_cols)
-}
-
-colnames(theta_df) <- c("year", "theta_1", "theta_2")
-
-### add judge ids
-theta_df["judge_id"] <- seq_len(dim(theta_df)[1])
-### add back in party
-theta_df <- theta_df |>
+# combine the values into a data.frame
+theta_df <- theta_whitened_matrix |>
+  as.data.frame() |>
+  mutate(judge_id = 1:nrow(theta_whitened_matrix), 
+         year = factor(
+                      rep(1:n_cohort, each = n_judge/n_cohort))) |>
   left_join(data.frame(year = factor(1:n_cohort), party = party), by = "year")
+
+colnames(theta_df) <- c("theta_1", "theta_2", "judge_id", "year", "party")
 
 # output plot of simulated data
  library(ggplot2)
  library(patchwork)
  
  theta_1_plot <- theta_df |>
-   mutate(year = as.factor(year)) |>
    ggplot(aes(x = year, y = theta_1, fill = as.factor(party))) +
    geom_boxplot() +
    scale_fill_manual(values = c("#1696d2", "#db2b27")) +
@@ -146,10 +135,9 @@ theta_df <- theta_df |>
    ylab("Theta D=1") +
    xlab(NULL) +
    with(theta_df, ylim(min(theta_2), max(theta_1))) +
-   ggtitle("Distribution of Theta Estimates by Cohort")
+   ggtitle("Simulated Distribution of Theta")
  
  theta_2_plot <- theta_df |>
-   mutate(year = as.factor(year)) |>
    ggplot(aes(x = year, y = theta_2, fill = as.factor(party))) +
    geom_boxplot() +
    scale_fill_manual(values = c("#1696d2", "#db2b27")) +
