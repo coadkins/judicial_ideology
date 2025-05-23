@@ -1,50 +1,30 @@
 functions {
-  matrix center_columns(matrix X) {
-    int N = rows(X);
-    int K = cols(X);
-    matrix[N, K] X_centered;
-    
-    // First column is a vector of ones
-    X_centered[, 1] = rep_vector(1, N);
-
-    for (k in 2:K) {
-      real col_mean = mean(to_vector(X[, k])); // Correct way to compute column mean
-      for (n in 1:N) {
-        X_centered[n, k] = X[n, k] - col_mean; // Subtract mean for each row element
-      }
+    vector standardize(vector x) {
+      real mu = mean(x);
+      real sigma = sd(x);
+      return (x - mu) / sigma;
     }
-    return X_centered;
   }
-}
 
 data {
     int<lower=1> N;
     int<lower=1> N_case_id;
     int<lower=1> N_judge;
+    int<lower=1> G;                                 // number of groups
+    int<lower=1> K;                                 // number of covariates to model group mean
+    int<lower=1> J;                                 // number of covariates to model group sd
     array[N] int<lower=0, upper=1> outcome;
-    array[N] int<lower=1, upper=N_judge> ii;           //tracks judge for obs. n
-    array[N] int<lower=1, upper=N_case_id> jj;         //tracks case for obs. n
-    array[N_judge] int<lower=1, upper=N_judge> judge;  // tracks judge for theta_i
-    matrix[N_judge, 3] x;                              //party, cohort and intercept
-    matrix[N_judge, 2] z;                              //cohort and intercept
+    array[N] int<lower=1, upper=N_judge> ii;        //tracks judge for obs. n
+    array[N] int<lower=1, upper=N_case_id> jj;      //tracks case for obs. n
+    array[N_judge] int<lower=1, upper=G> group_id;  // tracks group for judge i 
+    matrix[G, K] x;                                 // party, cohort and intercept to model group mean
+    matrix[G, J] z;                                 // cohort and intercept to model group sd
 }
-
-transformed data {
-    // identification constraints from Zhao 2019
-    matrix[3, N_judge] x_centered;
-    matrix[2, N_judge] z_centered;
-    // sum of gamma' * mu_theta_predictors = 0
-    x_centered = center_columns(x)';
-    // sum of lambda' * sigma_theta_predictors = 0
-    z_centered = center_columns(z)';
-    }
 
 parameters {
     vector[N_judge] theta_raw;            // ability score
-    vector[N_judge] mu_theta;             // group-level mean of ability score
-    vector<lower=0>[N_judge] sigma_theta; // group-level sd of ability scores
-    vector[3] gamma;                      // coef. for mu_theta predictors
-    vector[2] lambda;                     // coef. for sigma_theta predictors 
+    vector[K] gamma;                      // coef. for mu_theta predictors
+    vector[J] lambda;                     // coef. for sigma_theta predictors 
     vector[N_case_id] alpha_raw;          // difficulty score
     real mu_alpha;
     real<lower=0> sigma_alpha;
@@ -58,25 +38,37 @@ transformed parameters {
 vector[N_judge] theta;
 vector[N_case_id] alpha;
 vector[N_case_id] beta;
+vector[G] mu_theta;
+vector[G] sigma_theta;
+  for (g in 1:G) {
+    mu_theta[g] = x[g, ]*gamma;  
+  }
+  // covariance matrix is modeled using Cholesky factor
+  // construct the Cholesky factor of  cov. matrix for each group
+for (g in 1:G) {
+  sigma_theta[g] = exp(z[g]*lambda);
+}
+// demean and standardize theta
+  theta = standardize(theta_raw); 
 // implies: beta ~ normal(mu_beta, sigma_beta)
 beta = mu_beta + sigma_beta * beta_raw;
 alpha = mu_alpha + sigma_alpha * alpha_raw;
-for (i in 1:N_judge) {
-theta[i] = mu_theta[i] + sigma_theta[i] * theta_raw[i];
-}
 }
 
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
 // ideology (theta) and related parameters
 // Compute group-level parameters per judge
-for (i in 1:N_judge) {
-    mu_theta[i] ~ normal(gamma' * x_centered[,i], 1);
-    sigma_theta[i] ~ lognormal((lambda' * z_centered[,i]/2), 1);
-    theta_raw[i] ~ std_normal();
-}
-    gamma ~ std_normal();;
-    lambda ~ std_normal();
+// prior for group level mean predictors
+  gamma ~ normal(0,1); 
+
+// prior for group level SD predictors
+  lambda ~ normal(0,1);
+
+  for (i in 1:N_judge) {
+    theta_raw[i] ~ normal(mu_theta[group_id[i]],
+					 sigma_theta[group_id[i]]); //sample judge-level ability scores
+  } 
 
 // Priors for case-specific parameters
 alpha_raw ~ std_normal();
@@ -86,7 +78,6 @@ mu_alpha ~ std_normal();
 mu_beta ~ std_normal();
 sigma_alpha ~ lognormal(1, .25);
 sigma_beta ~ lognormal(1, .25);
-
 // Model of outcomes 
 for (n in 1:N) {
     outcome[n] ~ bernoulli_logit(beta[jj[n]] *
@@ -96,7 +87,6 @@ for (n in 1:N) {
 
 generated quantities {
     vector[N] y_hat;
-    vector[N_judge] theta_hat;
     for (n in 1:N) {
      y_hat[n] = bernoulli_rng(inv_logit((beta[jj[n]] * theta[ii[n]] + alpha[jj[n]])));
     }

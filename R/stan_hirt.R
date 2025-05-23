@@ -7,107 +7,163 @@ library(tidyr)
 library(qs)
 
 # simulate data
-
-set.seed(02139)
+set.seed(123)
 
 ## define constants
-n_cohort <- 12
-party <- rbinom(12, size = 1, prob = .5)
-time <- 1:n_cohort
-n_judge <- 1200
-n_cases <- 100000
+n_cohort <- 20 
+year <- factor(1:n_cohort)
+party <- rbinom(n_cohort, size = 1, prob = .5)
+n_judge <- n_cohort * 10
+n_cases <- n_judge * 30 
 
-## draw theta 2
-draw_theta_2 <- function(n, party, time) {
-  if (party == 0) {
-    y <- rnorm(n, 1 + (1 / n_cohort), .5)
-  } else if (party == 1) {
-    y <- rnorm(n, -1 + (1 / n_cohort) * time, .5 + (.5 / n_cohort) * time)
-  }
-  return(y)
+construct_gamma <- function(party, year) {
+  # construct matrix of gamma parameters consistent with my theory
+  # this is onerous beceause year is "one-hot encoded"
+  x <- model.matrix(~ party + year + party * year)
+  dem_years <- which(party == 0 & seq_along(party) != 1) - 1
+  year_cols <- grep("^year\\d+$", colnames(x))
+  party_year_cols <- grep("^party:year\\d+$", colnames(x))
+  gamma <- matrix(NA, ncol = ncol(x), nrow = 1) 
+  gamma[, 1] <- 0 # Intercept
+  gamma[, 2] <- (-1) # gamma for party
+  gamma[, year_cols] <- 0 # gamma for each year (theta1)
+  # gamma for each party*year(theta)
+  gamma[, party_year_cols[-dem_years]] <- seq(
+    from = 0,
+    by = -.4, # reps.
+    length.out = length(party_year_cols[-dem_years])
+  )
+  gamma[, party_year_cols[dem_years]] <- seq(
+    from = 0,
+    by = .4, # dems.
+    length.out = length(party_year_cols[dem_years])
+  )
+  return(gamma)
 }
 
-## construct data frame
-names(theta_1) <- as.character(1:12)
-theta_1 <- stack(theta_1)
+construct_lambda <- function(party, year) {
+  z <- model.matrix(~ 1 + year)
+  dem_years <- which(party == 0 & seq_along(party) != 1) # exclude index 1 for "one-hot encoding"
+  lambda <- matrix(NA, ncol = ncol(z), nrow = 1)
+  lambda[, 1] <- 1 # intercept
+  lambda[, -1] <- 0 # theta 1
+  return(lambda)
+}
 
-names(theta_2) <- as.character(1:12)
-theta_2 <- stack(theta_2)
+draw_theta_ij_raw <- function(n, party, year, gamma, lambda) {
+  # variables predicting mu
+  x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
+  z <- model.matrix(~ 1 + year) #1xk row vector
+  mu <- x %*% t(gamma)
+  sigma_theta <- z %*% t(lambda) 
+  # draw pairs of theta_ij
+  out <- rnorm(n, mu, sigma_theta)
+  return(out)
+}
 
-theta_df <- data.frame(
-  year = theta_1$ind,
-  theta_1 = theta_1$values,
-  theta_2 = theta_2$values
+theta_ij_standardize <- function(theta_vector) {
+  # de-mean each theta
+  theta_standardized <- (theta_vector - mean(theta_vector)/sd(theta_vector))
+  return(theta_standardized)
+}
+
+# draw some gammas and lambdas that match the random covariates
+gamma_sim <- construct_gamma(party, year)
+lambda_sim <- construct_lambda(party, year)
+
+# vectorize draw_theta_ij() over party and year
+theta_raw_list <- Map(
+  draw_theta_ij_raw,
+  party = party,
+  year = year,
+  MoreArgs = list(
+    n = n_judge / n_cohort,
+    gamma = gamma_sim,
+    lambda = lambda_sim
+  )
 )
 
-## output plot of simulated data
-par(mfrow = c(1, 2)) # two panels per plot
-plot(
-  theta_df$year,
-  theta_df$theta_1,
-  type = "p",
-  col = "blue",
-  main = "Theta_1 No Drift Over Time",
-  cex.main = 1
-)
-plot(
-  theta_df$year,
-  theta_df$theta_2,
-  type = "p",
-  col = "blue",
-  main = "Theta_2 Drifts Right Over Time",
-  cex.main = 1
-)
+# "whiten" the raw simulated theta
 
-### add judge ids
-theta_df["judge_id"] <- seq_len(dim(theta_df)[1])
-### add back in party
-theta_df <- theta_df |>
-  left_join(data.frame(year = factor(time), party = party), by = "year")
+theta_standardized_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
+
+# combine the values into a data.frame
+theta_df <- theta_standardized_vector |>
+  as.data.frame() |>
+  mutate(judge_id = 1:length(theta_standardized_vector), 
+         year = factor(
+                      rep(1:n_cohort, each = n_judge/n_cohort))) |>
+  left_join(data.frame(year = factor(1:n_cohort), party = party), by = "year")
+
+colnames(theta_df) <- c("theta", "judge_id", "year", "party")
+
+# output plot of simulated data
+ library(ggplot2)
+ library(patchwork)
+ 
+ theta_plot <- theta_df |>
+   ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
+   geom_boxplot() +
+   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+   theme_minimal() +
+   theme(legend.position = "none") +
+   ylab("Theta D=1") +
+   xlab(NULL) +
+   with(theta_df, ylim(min(theta), max(theta))) +
+   ggtitle("Simulated Distribution of Theta")
+ 
+  ggsave(here("graphics", "1D_corplot_n.png"), plot = theta_plot)
 
 ## simulate judges and cases
-draw_case <- function(theta_1, theta_2) {
-  case_type <- rbinom(n = 1, size = 1, prob = .5)
+draw_case <- function(thetas) {
   alpha <- rnorm(1, 0, 1)
-  beta <- rnorm(1, 0, 1)
-  if (case_type == 1) {
-    linear_func <- alpha + beta * theta_1
-  } else if (case_type == 0) {
-    linear_func <- alpha + beta * theta_2
-  }
+  beta <- rnorm(1, 0, 1) # beta in D dimensions
+  linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
-
-  y_out <- Map(rbinom, prob = link_func, MoreArgs = list(n = 1, size = 1))
-  y_out <- unlist(y_out)
-  return(list(y_out, case_type))
+  y_out <- rbinom(prob = link_func, n = 1, size = 1)
+  return(y_out)
 }
 
-draw_panel <- function(case_id) {
-  panel <- theta_df[sample(1:n_judge, size = 3), ]
-  case <- draw_case(panel$theta_1, panel$theta_2)
-  panel$outcome <- case[[1]]
-  panel$type <- case[[2]]
+draw_panel <- function(case_id, theta_df) {
+  panel <- theta_df[sample(1:n_judge, size = 3), ] # 3 judges per panel
+  thetas <- as.matrix(panel[, 1]) # 2 thetas per judge
+  case <- apply(thetas, MARGIN = 1, FUN = draw_case)
+  panel$outcome <- case
   panel$case_id <- case_id
   return(panel)
 }
 
-cases_df <- Map(draw_panel, case_id = 1:n_cases) |>
+cases_df <- Map(
+  draw_panel,
+  case_id = 1:n_cases,
+  MoreArgs = list(theta_df = theta_df)
+) |>
   list_rbind()
 
-# transform data for stan
-judge_covariates <- cases_df[!duplicated(cases_df$judge_id), ]
-x <- cbind(1, judge_covariates[, "party"], judge_covariates[, "year"])
-z <- cbind(1, judge_covariates[, "year"])
+# save simulated data to use later
+qsave(cases_df, here("results", "sim_data_1D.qs"))
 
+# transform data for stan
+judge_covariates <- cases_df[!duplicated(cases_df$year), ] |>
+  arrange(case_id) |>
+  dplyr::select(party, year)
+
+
+x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
+z <- with(judge_covariates, model.matrix(~ 1 + year))
 
 stan_data <- list(
-  N = dim(cases_df)[1],
+  N = nrow(cases_df),
   N_case_id = length(unique(cases_df$case_id)),
   N_judge = length(unique(cases_df$judge_id)),
-  outcome = cases_df$outcome,
-  judge = unique(cases_df$judge_id),
-  ii = cases_df$judge_id[order(cases_df$case_id)],
-  jj = cases_df$case_id[order(cases_df$case_id)],
+  G = length(unique(cases_df[, "year"])),
+  K = ncol(x),
+  J = ncol(z),
+  outcome = with(cases_df, outcome[order(case_id)]),
+  ii = with(cases_df, judge_id[order(case_id)]),
+  jj = with(cases_df, case_id[order(case_id)]),
+  group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
+              with(data = _, year[order(case_id)]),
   x = x,
   z = z
 )
@@ -125,11 +181,8 @@ fit <- model$sample(
   output_dir = here("results")
 )
 
-qs::qsave(x = fit, file = "stan_fit.qs")
-
 fit$draws()
 try(fit$sampler_diagnostics(), silent = TRUE)
 try(fit$init(), silent = TRUE)
 try(fit$profiles(), silent = TRUE)
-qs::qsave(x = fit, file = "stan_fit.qs")
 qsave(fit, here("results", "stan_fit.qs"))
