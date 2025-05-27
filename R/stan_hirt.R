@@ -13,8 +13,8 @@ set.seed(123)
 n_cohort <- 20 
 year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
-n_judge <- n_cohort * 10
-n_cases <- n_judge * 30 
+n_judge <- n_cohort * 30
+n_cases <- n_judge * 50 
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -41,22 +41,12 @@ construct_gamma <- function(party, year) {
   return(gamma)
 }
 
-construct_lambda <- function(party, year) {
-  z <- model.matrix(~ 1 + year)
-  dem_years <- which(party == 0 & seq_along(party) != 1) # exclude index 1 for "one-hot encoding"
-  lambda <- matrix(NA, ncol = ncol(z), nrow = 1)
-  lambda[, 1] <- 1 # intercept
-  lambda[, -1] <- 0 # theta 1
-  return(lambda)
-}
 
-draw_theta_ij_raw <- function(n, party, year, gamma, lambda) {
+draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
   # variables predicting mu
   x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
-  z <- model.matrix(~ 1 + year) #1xk row vector
   mu <- x %*% t(gamma)
-  sigma_theta <- z %*% t(lambda) 
-  # draw pairs of theta_ij
+  # draw theta_ij
   out <- rnorm(n, mu, sigma_theta)
   return(out)
 }
@@ -69,8 +59,11 @@ theta_ij_standardize <- function(theta_vector) {
 
 # draw some gammas and lambdas that match the random covariates
 gamma_sim <- construct_gamma(party, year)
-lambda_sim <- construct_lambda(party, year)
 
+sigma_theta_raw <- rnorm(1,0,1)
+sigma_theta <- ifelse(sigma_theta_raw < 0, 
+                      -1*sigma_theta_raw, 
+                      sigma_theta_raw)
 # vectorize draw_theta_ij() over party and year
 theta_raw_list <- Map(
   draw_theta_ij_raw,
@@ -79,11 +72,11 @@ theta_raw_list <- Map(
   MoreArgs = list(
     n = n_judge / n_cohort,
     gamma = gamma_sim,
-    lambda = lambda_sim
+    sigma_theta = sigma_theta
   )
 )
 
-# "whiten" the raw simulated theta
+# "standardize" the raw simulated theta
 
 theta_standardized_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
 
@@ -112,7 +105,7 @@ colnames(theta_df) <- c("theta", "judge_id", "year", "party")
    with(theta_df, ylim(min(theta), max(theta))) +
    ggtitle("Simulated Distribution of Theta")
  
-  ggsave(here("graphics", "1D_corplot_n.png"), plot = theta_plot)
+  ggsave(here("graphics", "1D_corplot_simple.png"), plot = theta_plot)
 
 ## simulate judges and cases
 draw_case <- function(thetas) {
@@ -150,7 +143,6 @@ judge_covariates <- cases_df[!duplicated(cases_df$year), ] |>
 
 
 x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
-z <- with(judge_covariates, model.matrix(~ 1 + year))
 
 stan_data <- list(
   N = nrow(cases_df),
@@ -158,14 +150,12 @@ stan_data <- list(
   N_judge = length(unique(cases_df$judge_id)),
   G = length(unique(cases_df[, "year"])),
   K = ncol(x),
-  J = ncol(z),
   outcome = with(cases_df, outcome[order(case_id)]),
   ii = with(cases_df, judge_id[order(case_id)]),
   jj = with(cases_df, case_id[order(case_id)]),
   group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
               with(data = _, year[order(case_id)]),
-  x = x,
-  z = z
+  x = x
 )
 
 # fit cmdstanr model
@@ -185,4 +175,4 @@ fit$draws()
 try(fit$sampler_diagnostics(), silent = TRUE)
 try(fit$init(), silent = TRUE)
 try(fit$profiles(), silent = TRUE)
-qsave(fit, here("results", "stan_fit.qs"))
+qsave(fit, here("results", "stan_fit_1D.qs"))
