@@ -13,8 +13,8 @@ set.seed(123)
 n_cohort <- 20 
 year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
-n_judge <- n_cohort * 30
-n_cases <- n_judge * 50 
+n_judge <- n_cohort * 15 
+n_cases <- n_judge * 30 
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -60,10 +60,8 @@ theta_ij_standardize <- function(theta_vector) {
 # draw some gammas and lambdas that match the random covariates
 gamma_sim <- construct_gamma(party, year)
 
-sigma_theta_raw <- rnorm(1,0,1)
-sigma_theta <- ifelse(sigma_theta_raw < 0, 
-                      -1*sigma_theta_raw, 
-                      sigma_theta_raw)
+sigma_theta_raw <- rlnorm(1,0,.5)
+sigma_theta <- log(sigma_theta_raw) 
 # vectorize draw_theta_ij() over party and year
 theta_raw_list <- Map(
   draw_theta_ij_raw,
@@ -110,7 +108,7 @@ colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 ## simulate judges and cases
 draw_case <- function(thetas) {
   alpha <- rnorm(1, 0, 1)
-  beta <- rnorm(1, 0, 1) # beta in D dimensions
+  beta <- rnorm(1, 0, 3) # beta in D dimensions
   linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
   y_out <- rbinom(prob = link_func, n = 1, size = 1)

@@ -21,7 +21,7 @@ data {
 
 parameters {
     vector[N_judge] theta_raw;            // ability score
-    real <lower=0> sigma_theta;           // homoskedastic variance for all groups 
+    real exp_sigma_theta;                 // homoskedastic variance for all groups 
     vector[K] gamma;                      // coef. for mu_theta predictors
     vector[N_case_id] alpha;              // intercept
     vector[N_case_id] beta;               // discrimination score
@@ -30,11 +30,13 @@ parameters {
 transformed parameters {
 vector[N_judge] theta;
 vector[G] mu_theta;
+real sigma_theta;
 // calculate mean ability for each group
   for (g in 1:G) {
     mu_theta[g] = x[g, ]*gamma;  
   }
 
+sigma_theta = log(exp_sigma_theta);
 // force sigma_theta to be positive
 // demean and standardize theta
   theta = standardize(theta_raw); 
@@ -53,10 +55,10 @@ model {
   } 
 
 // Priors for case-specific parameters
-alpha ~ normal(0,3);
+alpha ~ std_normal(); // 
 beta ~ normal(0,3);
 theta_raw ~ std_normal();
-sigma_theta ~ std_normal(); 
+exp_sigma_theta ~ lognormal(0, .5); 
 
 // Model of outcomes 
 for (n in 1:N) {
