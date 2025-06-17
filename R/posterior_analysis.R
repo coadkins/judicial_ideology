@@ -1,7 +1,6 @@
 library(bayesplot)
 library(cmdstanr)
 library(dplyr)
-library(factor.switching)
 library(ggplot2)
 library(here)
 library(mirai)
@@ -39,28 +38,20 @@ ggsave(here("graphics","trace_plots_1D_simplified.png"), trace_plots)
 mu_theta_draws <- spread_draws(fit, mu_theta[i])
 
 mu_theta_rsp <- mu_theta_draws |>
-# group by cohort and then chain
-  group_by(i, .chain) |> 
-# calculate sign for each group in each chain
-  mutate(chain_sign = ifelse(mean(mu_theta) > 0, 1, -1)) |> 
-  ungroup(.chain) |>
-# calculate sign for each group across all chains
-  mutate(group_sign = ifelse(mean(mu_theta) > 0, 1, -1)) |>
+  group_by(.draw) |>
+  mutate(draw_sign = ifelse(mean(mu_theta) > 0, 1, -1)) |>
   ungroup() |>
-# re-sign chains that have different signs than their group 
-  mutate(mu_theta = case_when(chain_sign == group_sign ~ mu_theta,
-         .default = mu_theta*(-1))) |>
-  select(-c("chain_sign", "group_sign"))
+  mutate(mu_theta_id = mu_theta * draw_sign)
 
 ## transform back into mcmc array
-mu_theta_draws_rsp <- 
+mu_theta_rsp_array <- 
   split(mu_theta_rsp, mu_theta_rsp[, ".chain"]) |>
-  purrr::map(\(x) tidybayes::unspread_draws(x, mu_theta[i], drop_indices = TRUE) |>
-  select(paste0("mu_theta[", 1:20, "]")) |>
+  purrr::map(\(x) tidybayes::unspread_draws(x, mu_theta_id[i], drop_indices = TRUE) |>
+  select(paste0("mu_theta_id[", 1:20, "]")) |>
   as.matrix())
 
 ### trace plots for reordered chains
-trace_rsp <- mcmc_trace(mu_theta_draws_rsp)
+trace_rsp <- mcmc_trace(mu_theta_rsp_array)
 ggsave(here("graphics", "trace_plots_1D_rsp.png"))
 
 # rhat plots for mu_theta
@@ -69,30 +60,17 @@ theta_draws <- subset_draws(draws, variable = theta_vars)
 rhat(theta_draws)
 
 # boxplots for estimates
-## extract all theta draws (switching to tidybayes syntax)
-theta_draws <- spread_draws(fit, theta[i])
-# rotation sign permutation
-## transform theta draws
-theta_rsp <- theta_draws |>
-  group_by(i, .chain) |>
-  mutate(chain_sign = ifelse(mean(theta) > 0, 1, -1)) |>
-  ungroup(.chain) |>
-  mutate(group_sign = ifelse(mean(theta) > 0, 1, -1)) |>
-  ungroup() |>
-  mutate(theta = case_when(chain_sign == group_sign ~ theta,
-         .default = theta*(-1)))|>
-  select(-c("chain_sign", "group_sign"))
-
 ## match up covariates
-judge_covariates <- sim_data[!duplicated(sim_data[, "judge_id"]), ] |>
+judge_covariates <- sim_data[!duplicated(sim_data[, "year"]), ] |>
   arrange(case_id) |>
   select(party, year) |>
   mutate(i = seq_along(party))
 
-theta_draws <- left_join(theta_draws, judge_covariates, by = "i")
-
+mu_theta_rsp <- mu_theta_rsp |>
+  left_join(judge_covariates, by = i)
+  
 ## ggplot
-theta_plot <- theta_draws |>
+theta_plot <- mu_theta_rsp |>
   mutate(year = as.factor(year)) |>
   ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
   geom_boxplot() +
@@ -101,10 +79,11 @@ theta_plot <- theta_draws |>
   theme(legend.position = "none") +
   ylab("Theta D=1") +
   xlab(NULL) +
-  with(theta_draws, ylim(min(theta), max(theta))) +
+  with(theta_draws, ylim(min(mu_theta_rsp), max(mu_theta_rsp))) +
   ggtitle("Distribution of Theta Estimates by Cohort")
 
-ggsave(here("graphics", "theta_hat_1D_rsp.png"), theta_plot)
+ggsave(here("graphics", "mu_theta_hat_1D_rsp.png"), theta_plot)
+
 # posterior predictive check
 prediction_draws <- spread_draws(fit, y_hat[..])[, -c(1:3)] |>
   as.matrix()
