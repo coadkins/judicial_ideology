@@ -10,3 +10,10 @@ figures/
 articles/
 _targets/
 renv/
+data/
+results/
+venv/
+.Renviron
+notebooks/
+data/
+
