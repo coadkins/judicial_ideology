@@ -40,7 +40,6 @@ ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
 RUN quarto install tinytex --update-path
 
 # set up PPM and stan-dev r-universe for Almalinux
-RUN rm .Rprofile
 RUN echo 'options(
   repos = c(
     CRAN = "https://packagemanager.posit.co/cran/__linux__/rhel9/latest",
