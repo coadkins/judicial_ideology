@@ -20,11 +20,12 @@ COPY _targets.R _targets.R
 RUN mkdir -p results/
 RUN mkdir -p graphics/
 RUN mkdir -p cmdstan/
-RUN mkdir -p .cache/
-RUN mkdir -p renv/
 
 # Copy renv.lock from local directory
 COPY renv.lock renv.lock
+
+#Copy set up file from local directory
+COPY setup.R setup.R
 
 # install R
 RUN rig add release
@@ -38,13 +39,17 @@ ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
 # add TeX
 RUN quarto install tinytex --update-path
 
-# Install renv and package dependencies
-RUN Rscript -e 'pak::pak("renv")'
-RUN Rscript -e 'renv::activate()'
-RUN Rscript -e 'renv::restore(exclude = c("rstan", "rstanarm"))'
-RUN Rscript -e 'cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")'
+# set up PPM and stan-dev r-universe for Almalinux
+RUN rm .Rprofile
+RUN echo 'options(
+  repos = c(
+    CRAN = "https://packagemanager.posit.co/cran/__linux__/rhel9/latest",
+    standev = "https://stan-dev.r-universe.dev"))' >>> .Rprofile
 
-# set up cmdstan
+# Install renv and package dependencies
+RUN Rscript setup.R
+
+# set up cmdstan path
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # Run targets pipeline
