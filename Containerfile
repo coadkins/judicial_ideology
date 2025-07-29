@@ -27,7 +27,7 @@ RUN mkdir -p renv/
 COPY renv.lock renv.lock
 
 # install R
-rig add release
+RUN rig add release
 
 # Install quarto
 RUN QUARTO_DL_URL=$(wget -qO- https://quarto.org/docs/download/_download.json | grep -oP "(?<=\"download_url\":\s\")https.*linux-amd64\.tar.gz") && \
