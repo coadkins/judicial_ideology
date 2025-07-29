@@ -1,11 +1,11 @@
-FROM ghcr.io/r-lib/rig/ubuntu-24.04-release
+FROM ghcr.io/r-lib/rig/debian-12-release
 # install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Update system packages
 RUN apt-get -y update && apt-get -y upgrade
 RUN apt-get -y install wget
-RUN apt-get -y install libglpk-dev
+RUN apt-get -y install cmake
 
 # Create a WORKDIR named after the project
 WORKDIR /usr
@@ -33,13 +33,9 @@ ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
 RUN quarto install tinytex --update-path
 
 # Install renv and package dependencies
-RUN Rscript -e 'pak::pak("renv")'
-RUN Rscript -e "renv::activate()"
-RUN Rscript -e 'renv::restore(exclude = c("rstan", "rstanarm"))'
-
+RUN Rscript -e 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/bookworm/latest")); pak::pak("renv"); renv::activate(); renv::restore(exclude = c("rstan", "rstanarm")); cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")'
 # set up cmdstan
-RUN Rscript -e 'cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")'
-RUN Rscript -e 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")'
+RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # Run targets pipeline
 ENTRYPOINT Rscript /usr/R/stan_hirt.R
