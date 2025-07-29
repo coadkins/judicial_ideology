@@ -11,26 +11,23 @@ library(tidybayes)
 library(tidyr)
 library(qs)
 
+# reference model date
+model_date <- "7292025"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
 # load posterior draws from .qs
-fit <- as_cmdstan_fit(
-  files = list.files(
-    here("results", "results_simplified"),
-    pattern = "hirt*",
-    full.names = TRUE
-  )
-)
+fit <- qs::qread(here::here("results", model_date, "stan_fit_1D.qs"))
+
 fit_array <- fit$draws()
 
 # load the simulated data
-sim_df <- qs::qread(here("results", "sim_data_1D.qs"))
+sim_df <- qs::qread(here("results", model_date, "sim_data_1D.qs"))
 
-# group_ids <- 
+group_ids <- get_group_ids(sim_df, judge_id, year)
 
 # identify signs
-identified_array <- identify_sign(
+id_array <- identify_chains(
   post_array = fit_array,
   param = theta[i],
   sign = -1
@@ -41,10 +38,8 @@ trace_plots <- bayesplot::mcmc_trace(
   pars = paste0("theta[", 1:20, "]")
 )
 
-# identify draws
-identified_draws <- identify_draws(identified_array)
+draw_group_means(id_array, theta[i], group_ids)
 
-# plot simulation results
 
 ## load outcomes and covariates
 sim_data <- qread(here("results", "results_simplified", "sim_data_1D.qs"))
