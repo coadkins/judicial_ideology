@@ -1,4 +1,5 @@
 pak::pak("renv")
 renv::activate()
-renv::restore(exclude = c("rstan", "rstanarm"))
+renv::restore(exclude = c("rstan", "rstanarm", "cmdstanr"))
+install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")
