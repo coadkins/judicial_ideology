@@ -1,13 +1,42 @@
-get_group_ids <- function(data) {
- # get group_ids and preserve input order 
- data |>
-     distinct(judge_id, year) 
- 
+get_group_ids <- function(data_df, i_var, g_var) {
+    i_var <- enquo(i_var)
+    g_var <- enquo(g_var)
+    # get group_ids and preserve input order
+    data_df |>
+        distinct(!!i_var, !!g_var) |>
+        select(g = !!g_var) |> # assign i so that its order
+        mutate(i = row_number()) # matches the order that
+    # data entered the model
 }
 
-draw_means <- function(post_array, param, group_ids) {
+draw_group_means <- function(post_array, param, group_ids) {
     param <- rlang::enquo(param)
-    # for each draw chain
+    # create a label to id input params in
+    # tidybayes' spread_draws() df
+    value_col <- rlang::as_label(param) |>
+        gsub("^\\~|\\[.*", "", x = _) |>
+        rlang::parse_expr()
+    mu_value_col <- stringi::stri_c(
+        "mu_",
+        rlang::as_label(value_col),
+        "[g]") |>
+        rlang::parse_expr()
+
+    # tidy the array
+    subset_df <- tidybayes::spread_draws(post_array, !!param)
+    # join grouping variable
+    mu_g_df <- subset_df |>
+        dplyr::left_join(group_ids, by = "i") |>
+        group_by(g, .draw, .iteration, .chain) |> 
+        summarize(mu_theta = mean(!!value_col)) |> # get the mean for each group
+        tidybayes::unspread_draws(!!mu_value_col)
+    # transform into draws array
+    mu_g_array <- posterior::as_draws_array(mu_g_df, .nchains = 4)
+    return(mu_g_array)
+}
+
+validate_posterior <- function() {
+    # compare the simulated posterior to the estimated one
 }
 
 identify_sign <- function(
