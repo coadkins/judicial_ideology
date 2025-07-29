@@ -39,7 +39,11 @@ ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
 RUN quarto install tinytex --update-path
 
 # Install renv and package dependencies
-RUN Rscript -e 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/rhel9/latest")); pak::pak("renv"); renv::activate(); renv::restore(exclude = c("rstan", "rstanarm")); cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")'
+RUN Rscript -e 'pak::pak("renv")'
+RUN Rscript -e 'renv::activate()'
+RUN Rscript -e 'renv::restore(exclude = c("rstan", "rstanarm"))'
+RUN Rscript -e 'cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")'
+
 # set up cmdstan
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
