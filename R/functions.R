@@ -1,33 +1,49 @@
+
+#' Return dataframe matching individuals to groups, in the right order 
+#'
+#' @param data_df data frame of observations
+#' @param i_var expression, a data frame column designating individuals
+#' @param g_var expression, a data frame column designating groups
+#'
+#' @returns a dataframe with `length(unique(data_df$g_var))` rows
 get_group_ids <- function(data_df, i_var, g_var) {
     i_var <- enquo(i_var)
     g_var <- enquo(g_var)
     # get group_ids and preserve input order
-    data_df |>
+    out <- data_df |>
         distinct(!!i_var, !!g_var) |>
-        select(g = !!g_var) |> # assign i so that its order
+        select(g = !!g_var) |>   # assign i so that its order
         mutate(i = row_number()) # matches the order that
-    # data entered the model
+                                 # data entered the model
+    return(out)
 }
 
-draw_group_means <- function(post_array, param, group_ids) {
-    param <- rlang::enquo(param)
-    # create a label to id input params in
-    # tidybayes' spread_draws() df
-    value_col <- rlang::as_label(param) |>
-        gsub("^\\~|\\[.*", "", x = _) |>
-        rlang::parse_expr()
-    mu_value_col <- stringi::stri_c(
+# -----------------------------------------------------------------------------
+
+#' Compute parameter means for each draw in an array of posterior draws
+#'
+#' @param post_array array of posterior draws from a Stan model
+#' @param estimator expression, the parameter to generate grouped means for
+#'  in `tidybayes` parameter syntax
+#' @param group_ids a data frame matching individuals to groups, output by `get_group_ids()`
+#'
+#' @returns draws of group means, formatted as a posterior draws array.
+draw_post_group_means <- function(post_array, estimator, group_ids) {
+    estimator <- rlang::enquo(estimator)
+    value_col <- extract_var_name(estimator) # name of estimator column
+    mu_value_col <- stringi::stri_c( # name of group means column
         "mu_",
         rlang::as_label(value_col),
-        "[g]") |>
+        "[g]"
+    ) |>
         rlang::parse_expr()
 
     # tidy the array
-    subset_df <- tidybayes::spread_draws(post_array, !!param)
+    subset_df <- tidybayes::spread_draws(post_array, !!estimator)
     # join grouping variable
     mu_g_df <- subset_df |>
         dplyr::left_join(group_ids, by = "i") |>
-        group_by(g, .draw, .iteration, .chain) |> 
+        group_by(g, .draw, .iteration, .chain) |>
         summarize(mu_theta = mean(!!value_col)) |> # get the mean for each group
         tidybayes::unspread_draws(!!mu_value_col)
     # transform into draws array
@@ -35,10 +51,36 @@ draw_group_means <- function(post_array, param, group_ids) {
     return(mu_g_array)
 }
 
-validate_posterior <- function() {
-    # compare the simulated posterior to the estimated one
+# -----------------------------------------------------------------------------
+
+#' Compare the posterior draws to the original simulated data 
+#'
+#' @param post_array a draws array object, returned by `draws()` method
+#' @param estimator expression, the parameter estimated by the draws from the posterior distribution
+#' @param stan_data_df tidy data frame of (simulated) model data, returned by `stan_data_to_df()`
+#' @param parameter expression, the column in stan_data_df corresponding to "true" parameter values
+#'
+#' @returns a dataframe meant to use with plot_validate_posterior()
+validate_posterior <- function(
+    post_array, 
+    estimator, 
+    stan_data_df,
+    parameter) { 
 }
 
+# -----------------------------------------------------------------------------
+
+#' Plot distribution of estimated versus true parameter values  
+#'
+#' @param validated_df
+#'
+#' @returns
+plot_validate_posterior <- function(validated_df) {
+
+}
+# -----------------------------------------------------------------------------
+
+# TO DO: Rework these to use "estimator" instead of parameter
 identify_sign <- function(
     post_array = fit_array,
     param = theta[i],
