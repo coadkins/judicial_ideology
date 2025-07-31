@@ -1,6 +1,6 @@
 FROM almalinux:9
-# install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Optional: install uv and Python
+# COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Update system packages
 RUN dnf -y update
@@ -24,26 +24,23 @@ RUN mkdir -p cmdstan/
 # Copy renv.lock from local directory
 COPY renv.lock renv.lock
 
-#Copy set up file from local directory
-COPY setup.R setup.R
-
 # install R
 RUN rig add release
 
-# Install quarto
-RUN QUARTO_DL_URL=$(wget -qO- https://quarto.org/docs/download/_download.json | grep -oP "(?<=\"download_url\":\s\")https.*linux-amd64\.tar.gz") && \
-wget $QUARTO_DL_URL -O /tmp/quarto.tar.gz && \
-tar -C /etc -xvzf /tmp/quarto.tar.gz && \
-EXECUTABLE_PATH=$(find /etc -type d -maxdepth 1 -name "quarto-*") && \
-ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
-# add TeX
-RUN quarto install tinytex --update-path
+# Optional: install quarto
+# RUN QUARTO_DL_URL=$(wget -qO- https://quarto.org/docs/download/_download.json | grep -oP "(?<=\"download_url\":\s\")https.*linux-amd64\.tar.gz") && \
+# wget $QUARTO_DL_URL -O /tmp/quarto.tar.gz && \
+# tar -C /etc -xvzf /tmp/quarto.tar.gz && \
+# EXECUTABLE_PATH=$(find /etc -type d -maxdepth 1 -name "quarto-*") && \
+# ln -s $EXECUTABLE_PATH/bin/quarto /usr/local/bin/quarto
+# Optional: add TeX
+# RUN quarto install tinytex --update-path
 
-# set up PPM and stan-dev r-universe for Almalinux
+# set up PPM for Almalinux
 RUN echo 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/rhel9/latest"))' >> .Rprofile
 
 # Install renv and package dependencies
-RUN Rscript setup.R
+RUN Rscript R/setup.R
 
 # set up cmdstan path
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
