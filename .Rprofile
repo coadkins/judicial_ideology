@@ -5,6 +5,7 @@ options(
 )
 source("renv/activate.R")
 renv::settings$snapshot.type("explicit")
+renv::settings$ignored.packages("cmdstanr")
 renv::config$pak.enabled(TRUE)
 Sys.setenv(CMDSTAN = here::here(".cmdstan"))
 
