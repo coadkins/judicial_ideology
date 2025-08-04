@@ -1,0 +1,5 @@
+install.packages("pak")
+install.packages("renv")
+renv::config$pak.enabled(TRUE)
+renv::activate()
+renv::restore()
