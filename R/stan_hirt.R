@@ -60,8 +60,7 @@ theta_ij_standardize <- function(theta_vector) {
 # draw some gammas and lambdas that match the random covariates
 gamma_sim <- construct_gamma(party, year)
 
-sigma_theta_raw <- rlnorm(1,0,.5)
-sigma_theta <- log(sigma_theta_raw) 
+sigma_theta <- rlnorm(1, 0, .5)
 # vectorize draw_theta_ij() over party and year
 theta_raw_list <- Map(
   draw_theta_ij_raw,
