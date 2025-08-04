@@ -1,0 +1,2 @@
+install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
+cmdstanr::install_cmdstan("/usr/cmdstan", version = "2.36.0")
