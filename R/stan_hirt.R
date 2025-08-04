@@ -9,6 +9,9 @@ library(qs)
 # simulate data
 set.seed(123)
 
+# rudimentary model id
+model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(10:99, 1))
+
 ## define constants
 n_cohort <- 20 
 year <- factor(1:n_cohort)
@@ -103,6 +106,11 @@ colnames(theta_df) <- c("theta", "judge_id", "year", "party")
    ggtitle("Simulated Distribution of Theta")
  
   ggsave(here("graphics", "1D_corplot_simple.png"), plot = theta_plot)
+ggsave(
+  here("graphics", model_id, "1D_corplot_simple.png"),
+  plot = theta_plot,
+  create.dir = TRUE
+)
 
 ## simulate judges and cases
 draw_case <- function(thetas) {
@@ -131,7 +139,11 @@ cases_df <- Map(
   list_rbind()
 
 # save simulated data to use later
-qsave(cases_df, here("results", "sim_data_1D.qs"))
+results_path <- here("results", model_id)
+if (!dir.exists(results_path)) {
+  dir.create(results_path, recursive = TRUE)
+}
+qsave(cases_df, here(results_path, "sim_data_1D.qs"))
 
 # transform data for stan
 judge_covariates <- cases_df[!duplicated(cases_df$year), ] |>
@@ -165,11 +177,11 @@ fit <- model$sample(
   chains = 4,
   parallel_chains = 4,
   refresh = 100,
-  output_dir = here("results")
+  output_dir = here(results_path, model_id),
 )
 
 fit$draws()
 try(fit$sampler_diagnostics(), silent = TRUE)
 try(fit$init(), silent = TRUE)
 try(fit$profiles(), silent = TRUE)
-qsave(fit, here("results", "stan_fit_1D.qs"))
+qsave(fit, here(results_path, "stan_fit_1D.qs"))
