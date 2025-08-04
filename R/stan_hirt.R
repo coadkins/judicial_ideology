@@ -53,7 +53,7 @@ draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
 
 theta_ij_standardize <- function(theta_vector) {
   # de-mean each theta
-  theta_standardized <- (theta_vector - mean(theta_vector)/sd(theta_vector))
+  theta_standardized <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
   return(theta_standardized)
 }
 
