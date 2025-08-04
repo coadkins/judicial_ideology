@@ -12,7 +12,7 @@ library(tidyr)
 library(qs)
 
 # reference model date
-model_date <- "7292025"
+model_date <- "0804202540"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
@@ -77,11 +77,11 @@ ggsave(here("graphics", model_date, "ppc.png"), post_pred_plot)
 validation_plot <- reshape_posterior(id_array, mu_theta[i], group_order) |> 
   ggplot(aes(x = id, y = mu_theta)) + # boxplot for "true" theta draws geom_boxplot(data = sim_data, alpha = 0.5) +
   # boxplot for mu_theta
-   geom_violin(alpha = 0.3, fill = "black") +
+   geom_boxplot(alpha = 0.5, fill = "lightgrey") +
   # use transparency so both sets of box plots are visible
   # boxplot for observed data 
   geom_boxplot(aes(x = year, y = theta, 
-  fill = factor(party)), data = sim_df) +
+  fill = factor(party), alpha = .5), data = sim_df) +
   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
   # boxplot for "true" theta draws
   theme_minimal() +
