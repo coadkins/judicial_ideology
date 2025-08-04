@@ -15,25 +15,16 @@ env:
   IMAGE_DESC: "Judicial Ideology Container Runner"
   IMAGE_NAME: "${{ github.event.repository.name }}"  # output image name, usually same as repo name
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
+  DEFAULT_TAG: "latest"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ matrix.variant }}
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.brand_name}}-${{ inputs.stream_name }}
   cancel-in-progress: true
 
 jobs:
   build_push:
-    name: Build and push image (${{ matrix.variant }})
+    name: Build and push image
     runs-on: ubuntu-24.04
-
-    strategy:
-      matrix:
-        include:
-          - variant: hirt-hom
-            script: hirt-hom.R
-          - variant: hirt-D1
-            script: hirt-D1.R
-          - variant: hirt-D2
-            script: hirt-D2.R
 
     permissions:
       contents: read
@@ -51,18 +42,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Get current date
+
         id: date
         run: |
           echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
-
-      # Create variant-specific Containerfile
-      - name: Create variant Containerfile
-        run: |
-          # Copy the base Containerfile and modify the entrypoint
-          cp Containerfile Containerfile.${{ matrix.variant }}
-          # Remove the existing ENTRYPOINT line and add the new one
-          sed -i '/^ENTRYPOINT/d' Containerfile.${{ matrix.variant }}
-          echo "ENTRYPOINT Rscript /usr/R/${{ matrix.script }}" >> Containerfile.${{ matrix.variant }}
 
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
       # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
@@ -71,12 +54,13 @@ jobs:
         id: metadata
         with:
           # This generates all the tags for your image, you can add custom tags here too!
-          # Tags now include the variant name
+          # Default tags are "$DEFAULT_TAG" and "$DEFAULT_TAG.$date".
           tags: |
-            type=raw,value=${{ matrix.variant }}
-            type=raw,value=${{ matrix.variant }}.{{date 'YYYYMMDD'}}
-            type=sha,enable=${{ github.event_name == 'pull_request' }},suffix=-${{ matrix.variant }}
-            type=ref,event=pr,suffix=-${{ matrix.variant }}
+            type=raw,value=${{ env.DEFAULT_TAG }}
+            type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+            type=raw,value={{date 'YYYYMMDD'}}
+            type=sha,enable=${{ github.event_name == 'pull_request' }}
+            type=ref,event=pr
           sep-tags: " "
           sep-annotations: " "
 
@@ -85,8 +69,9 @@ jobs:
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
         with:
           containerfiles: |
-            ./Containerfile.${{ matrix.variant }}
-          # Postfix image name with variant to make it descriptive
+            ./Containerfile
+          # Postfix image name with -custom to make it a little more descriptive
+          # Syntax: https://docs.github.com/en/actions/learn-github-actions/expressions#format
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           oci: false
@@ -100,8 +85,8 @@ jobs:
       #   uses: hhd-dev/rechunk@f153348d8100c1f504dec435460a0d7baf11a9d2 # v1.1.1
       #   with:
       #     rechunk: 'ghcr.io/hhd-dev/rechunk:v1.0.1'
-      #     ref: "localhost/${{ env.IMAGE_NAME }}:${{ matrix.variant }}"
-      #     prev-ref: "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.variant }}"
+      #     ref: "localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+      #     prev-ref: "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
       #     skip_compression: true
       #     version: ${{ env.CENTOS_VERSION }}
 
