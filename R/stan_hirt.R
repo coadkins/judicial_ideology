@@ -189,7 +189,7 @@ fit <- model$sample(
   chains = 4,
   parallel_chains = 4,
   refresh = 100,
-  output_dir = here(results_path, model_id),
+  output_dir = here(results_path),
   init = init_fn
 )
 
