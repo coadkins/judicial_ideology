@@ -10,4 +10,12 @@ extract_var_name <- function(var_in) {
   return(out)
 } 
 
+extract_index <- function(var_in) {
+out <- rlang::as_label(var_in) |>
+  stringi::stri_extract(str = _, regex = "(?<=\\[)[^\\]]+(?=\\])") |>
+  rlang::parse_expr()
+
+return(out)  
+}
+
 # ------------------------------------------------------------------------------

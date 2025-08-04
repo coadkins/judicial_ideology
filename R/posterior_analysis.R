@@ -18,179 +18,76 @@ walk(here::here("R", c("functions.R", "utils.R")), source)
 
 # load posterior draws from .qs
 fit <- qs::qread(here::here("results", model_date, "stan_fit_1D.qs"))
-
 fit_array <- fit$draws()
 
 # load the simulated data
 sim_df <- qs::qread(here("results", model_date, "sim_data_1D.qs"))
-
+# from the simulated data, get
+# 1. a data frame matching judges to groups
+# 2. a vector of group_ids in order they appear in the data
 group_ids <- get_group_ids(sim_df, judge_id, year)
+group_order <- unique(group_ids[, "g"])
 
-# identify signs
+# identify signs for mu_theta
 id_array <- identify_chains(
   post_array = fit_array,
-  param = theta[i],
+  param = mu_theta[i],
   sign = -1
 )
+
+# identify signs for beta
+
+id_array <- identify_chains(
+  post_array = id_array,
+  param = beta[i],
+  sign = -1
+)
+
 # check convergence plots
-trace_plots <- bayesplot::mcmc_trace(
-  identified_array,
-  pars = paste0("theta[", 1:20, "]")
+mu_g_trace_plots <- bayesplot::mcmc_trace(
+  id_array,
+  pars = paste0("mu_theta[", 1:20, "]")
 )
+ggsave(here("graphics", model_date, "mu_g_trace_plots.png"), create.dir = TRUE)
 
-draw_group_means(id_array, theta[i], group_ids)
-
-
-## load outcomes and covariates
-sim_data <- qread(here("results", "results_simplified", "sim_data_1D.qs"))
-
-## trace plots
-# subset to only mu_theta draws
-mu_theta_vars <- grep("mu_theta", variables(draws), value = TRUE)
-mu_theta_draws <- subset_draws(draws, variable = mu_theta_vars)
-
-# trace plots for mu_theta
-trace_plots <- mcmc_trace(
-  mu_theta_draws,
-  pars = vars("mu_theta[1]":"mu_theta[20]")
+# check convergence plots
+beta_j_trace_plots <- bayesplot::mcmc_trace(
+  id_array,
+  pars = paste0("beta[", 1:20, "]")
 )
-ggsave(here("graphics", "trace_plots_1D_simplified.png"), trace_plots)
+ggsave(here("graphics", model_date, "beta_j_trace_plots.png"), create.dir = TRUE)
 
-# rotation sign permutation
-## transform mu_theta draws
-mu_theta_draws <- spread_draws(fit, mu_theta[i])
-
-mu_theta_rsp <- mu_theta_draws |>
-  group_by(.draw) |>
-  mutate(draw_sign = ifelse(mean(mu_theta) > 0, 1, -1)) |>
-  ungroup() |>
-  mutate(mu_theta_id = mu_theta * draw_sign)
-
-## transform back into mcmc array
-cl <- make_cluster(4)
-mu_theta_rsp_array <-
-  split(mu_theta_rsp, mu_theta_rsp[, ".chain"]) |>
-  mirai_map(\(x) {
-    tidybayes::unspread_draws(x, mu_theta_id[i], drop_indices = TRUE) |>
-      dplyr::select(paste0("mu_theta_id[", 1:20, "]")) |>
-      as.matrix()
-  })
-
-### trace plots for reordered chains
-trace_rsp <- mcmc_trace(mu_theta_rsp_array[])
-ggsave(here("graphics", "trace_plots_1D_rsp.png"))
-
-# rhat plots for mu_theta
-theta_vars <- variables(draws)[grep("^theta\\[", variables(draws))]
-theta_draws <- subset_draws(draws, variable = theta_vars)
-rhat(theta_draws)
-
-# boxplots for estimates
-## match up covariates
-judge_covariates <- sim_data[!duplicated(sim_data[, "year"]), ] |>
-  arrange(case_id) |>
-  select(party, year) |>
-  mutate(i = seq_along(party))
-
-mu_theta_rsp <- mu_theta_rsp |>
-  left_join(judge_covariates, by = i)
-
-## ggplot
-theta_plot <- mu_theta_rsp |>
-  mutate(year = as.factor(year)) |>
-  ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
-  geom_boxplot() +
-  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-  theme_minimal() +
-  theme(legend.position = "none") +
-  ylab("Theta D=1") +
-  xlab(NULL) +
-  with(theta_draws, ylim(min(mu_theta_rsp), max(mu_theta_rsp))) +
-  ggtitle("Distribution of Theta Estimates by Cohort")
-
-ggsave(here("graphics", "mu_theta_hat_1D_esp.png"), theta_plot)
-
-# compare to estimate from using gamma
-
-## trace plots
-# subset to only gamma draws
-gamma_vars <- grep("gamma", variables(draws), value = TRUE)
-gamma_draws <- subset_draws(draws, variable = gamma_vars)
-
-# trace plots for mu_theta
-trace_plots_gamma <- mcmc_trace(
-  gamma_draws,
-  pars = vars("gamma[1]":"gamma[20]")
-)
-ggsave(
-  here("graphics", "gamma_trace_plots_1D_simplified.png"),
-  trace_plots_gamma
-)
-
-# rotation sign permutation
-## transform mu_theta draws
-gamma_draws <- spread_draws(fit, gamma[i])
-
-gamma_rsp <- gamma_draws |>
-  group_by(.draw) |>
-  mutate(draw_sign = ifelse(mean(gamma) > 0, 1, -1)) |>
-  ungroup() |>
-  mutate(gamma_id = gamma * draw_sign)
-
-## transform back into mcmc array
-cl <- make_cluster(4)
-daemons(4)
-gamma_rsp_array <-
-  split(gamma_rsp, gamma_rsp[, ".chain"]) |>
-  mirai_map(\(x) {
-    tidybayes::unspread_draws(x, gamma_id[i], drop_indices = TRUE)[] |>
-      dplyr::select(paste0("gamma_id[", 1:20, "]")) |>
-      as.matrix()
-  })
-
-### trace plots for reordered chains
-trace_rsp <- mcmc_trace(gamma_rsp_array[])
-ggsave(here("graphics", "gamma_trace_plots_1D_rsp.png"))
-
-## figure out the group means using gamma
-## group by chain and draw
-
-# boxplots for estimates
-## match up covariates
-judge_covariates <- sim_data[!duplicated(sim_data[, "year"]), ] |>
-  arrange(case_id) |>
-  select(party, year) |>
-  mutate(i = seq_along(party))
-
-mu_theta_rsp <- mu_theta_rsp |>
-  left_join(judge_covariates, by = i)
-
-## ggplot
-theta_plot <- mu_theta_rsp |>
-  mutate(year = as.factor(year)) |>
-  ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
-  geom_boxplot() +
-  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-  theme_minimal() +
-  theme(legend.position = "none") +
-  ylab("Theta D=1") +
-  xlab(NULL) +
-  with(theta_draws, ylim(min(mu_theta_rsp), max(mu_theta_rsp))) +
-  ggtitle("Distribution of Theta Estimates by Cohort")
-
-ggsave(here("graphics", "gamma_mu_theta_hat_1D_esp.png"), theta_plot)
 # posterior predictive check
-prediction_draws <- spread_draws(fit, y_hat[..])[, -c(1:3)] |>
+prediction_draws <- spread_draws(fit_array, y_hat[..])[, -c(1:3)] |>
   as.matrix()
 
-## chart by year
+## plot predictions by group 
 post_pred_plot <- ppc_bars_grouped(
-  y = sim_data[, "outcome"],
+  y = sim_df[, "outcome"],
   yrep = prediction_draws,
-  group = sim_data[, "year"]
+  group = sim_df[, "year"]
 )
-
+## update plot title and save
 post_pred_plot <- post_pred_plot +
   ggtitle("PPC Check by Cohort")
+ggsave(here("graphics", model_date, "ppc.png"), post_pred_plot)
+  
+# Plot model results versus simulated data
 
-ggsave(here("graphics", "ppc_1D_rsp.png"), post_pred_plot)
+validation_plot <- reshape_posterior(id_array, mu_theta[i], group_order) |> 
+  ggplot(aes(x = id, y = mu_theta)) + # boxplot for "true" theta draws geom_boxplot(data = sim_data, alpha = 0.5) +
+  # boxplot for mu_theta
+   geom_violin(alpha = 0.3, fill = "black") +
+  # use transparency so both sets of box plots are visible
+  # boxplot for observed data 
+  geom_boxplot(aes(x = year, y = theta, 
+  fill = factor(party)), data = sim_df) +
+  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+  # boxplot for "true" theta draws
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylab("Mu Theta") +
+  xlab(NULL) +
+  ggtitle("Distribution of Theta Estimates by Cohort")
+
+ggsave(here("graphics", model_date, "validation_plot.png"), validation_plot)
