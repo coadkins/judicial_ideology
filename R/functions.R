@@ -91,23 +91,52 @@ reshape_posterior <- function(
 #     return(out)
 # }
 
-# identify_draws <- function(
-#     post_array = fit_array,
-#     param_hat = theta[i]
-# ) {
-#     param_hat <- rlang::enquo(param_hat)
-#     # transform the input array into a `draws_df` objects
-#     post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
-#         ungroup()
-#     # convert tidybayes syntax for variable names
-#     # into a quosure that identifies the column
-#     # containing the parameter values
-#     value_hat_col <- rlang::as_label(param_hat) |>
-#         gsub("^\\~|\\[.*", "", x = _) |>
-#         rlang::parse_expr()
-# 
-#     # copy the original array and return it with flipped values
-# }
+identify_draws <- function(
+    post_array = fit_array,
+    param_hat = theta[i]
+) {
+    param_hat <- rlang::enquo(param_hat)
+    # transform the input array into a `draws_df` objects
+    post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
+        ungroup()
+    # convert tidybayes syntax for variable names
+    # into a quosure that identifies the column
+    # containing the parameter values
+    value_hat_col <- rlang::as_label(param_hat) |>
+        gsub("^\\~|\\[.*", "", x = _) |>
+        rlang::parse_expr()
+    # figure out which draws to flip
+    draw_flips <- post_long_df |>
+        dplyr::group_by(.draw) |>
+        dplyr::summarise(
+            flip = (sign * mean.default(!!value_hat_col)) < 0,
+            .groups = "drop"
+        ) |>
+        dplyr::select(.draw, flip) |>
+        dplyr::filter(flip == TRUE) |>
+        pull(.chain)
+    # copy the original array and return it with flipped values
+    id_array <- post_array
+    # create a logical vector for for every element row
+    # that needs to be flipped
+    cols <- draw_flips
+    # create a logical vector for every element col
+    # that needs to be flipped
+    vars <- stringr::str_detect(
+        unlist(dimnames(id_array)["variable"]), #var name for evey element
+        paste0(
+            rlang::as_label(value_hat_col), # regexp made from `value_col` expression
+            "\\[.*"
+        )
+    )
+    suppressWarnings(
+        id_array[, cols, vars] <- -1 * id_array[, cols, vars]
+    )
+    # return in the same format as input - draws_array
+    # this is a valid input for posterior::mcmc_trace()
+    return(id_array)
+}
+}
 
 identify_chains <- function(
     post_array = fit_array,
