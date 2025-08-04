@@ -1,4 +1,6 @@
-pak::pak("renv")
+install.packages("pak")
+install.packages("renv")
+renv::config$pak.enabled(TRUE)
 renv::activate()
 renv::restore()
 install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))

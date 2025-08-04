@@ -25,7 +25,7 @@ RUN mkdir -p cmdstan/
 COPY renv.lock renv.lock
 
 # install R
-RUN rig add release
+RUN rig add release --without-pak
 
 # Optional: install quarto
 # RUN QUARTO_DL_URL=$(wget -qO- https://quarto.org/docs/download/_download.json | grep -oP "(?<=\"download_url\":\s\")https.*linux-amd64\.tar.gz") && \
