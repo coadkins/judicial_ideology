@@ -13,11 +13,11 @@ set.seed(123)
 model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(10:99, 1))
 
 ## define constants
-n_cohort <- 20 
+n_cohort <- 20
 year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
-n_judge <- n_cohort * 15 
-n_cases <- n_judge * 30 
+n_judge <- n_cohort * 15
+n_cases <- n_judge * 30
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -26,7 +26,7 @@ construct_gamma <- function(party, year) {
   dem_years <- which(party == 0 & seq_along(party) != 1) - 1
   year_cols <- grep("^year\\d+$", colnames(x))
   party_year_cols <- grep("^party:year\\d+$", colnames(x))
-  gamma <- matrix(NA, ncol = ncol(x), nrow = 1) 
+  gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
   gamma[, 1] <- 0 # Intercept
   gamma[, 2] <- (-1) # gamma for party
   gamma[, year_cols] <- 0 # gamma for each year (theta1)
@@ -43,7 +43,6 @@ construct_gamma <- function(party, year) {
   )
   return(gamma)
 }
-
 
 draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
   # variables predicting mu
@@ -83,29 +82,31 @@ theta_standardized_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
 # combine the values into a data.frame
 theta_df <- theta_standardized_vector |>
   as.data.frame() |>
-  mutate(judge_id = 1:length(theta_standardized_vector), 
-         year = factor(
-                      rep(1:n_cohort, each = n_judge/n_cohort))) |>
+  mutate(
+    judge_id = 1:length(theta_standardized_vector),
+    year = factor(
+      rep(1:n_cohort, each = n_judge / n_cohort)
+    )
+  ) |>
   left_join(data.frame(year = factor(1:n_cohort), party = party), by = "year")
 
 colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 
 # output plot of simulated data
- library(ggplot2)
- library(patchwork)
- 
- theta_plot <- theta_df |>
-   ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
-   geom_boxplot() +
-   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-   theme_minimal() +
-   theme(legend.position = "none") +
-   ylab("Theta D=1") +
-   xlab(NULL) +
-   with(theta_df, ylim(min(theta), max(theta))) +
-   ggtitle("Simulated Distribution of Theta")
- 
-  ggsave(here("graphics", "1D_corplot_simple.png"), plot = theta_plot)
+library(ggplot2)
+library(patchwork)
+
+theta_plot <- theta_df |>
+  ggplot(aes(x = year, y = theta, fill = as.factor(party))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylab("Theta D=1") +
+  xlab(NULL) +
+  with(theta_df, ylim(min(theta), max(theta))) +
+  ggtitle("Simulated Distribution of Theta")
+
 ggsave(
   here("graphics", model_id, "1D_corplot_simple.png"),
   plot = theta_plot,
@@ -163,13 +164,24 @@ stan_data <- list(
   ii = with(cases_df, judge_id[order(case_id)]),
   jj = with(cases_df, case_id[order(case_id)]),
   group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
-              with(data = _, year[order(case_id)]),
+    with(data = _, year[order(case_id)]),
   x = x
 )
 
-# fit cmdstanr model
+# compile cmdstanr model
 model <- here("stan", "hirt.stan") |>
   cmdstan_model()
+
+# Create initialization function
+init_fn <- function() {
+  list(
+    gamma = rnorm(stan_data$K, 0, 0.5), # Smaller initial values
+    sigma_theta = 0.5, # Conservative sigma
+    theta_raw = rnorm(stan_data$N_judge, 0, 0.1), # Small theta_raw values
+    alpha = rnorm(stan_data$N_case_id, 0, 0.1),
+    beta = abs(rnorm(stan_data$N_case_id, 0, 0.5)) # Ensure positive beta
+  )
+}
 
 fit <- model$sample(
   data = stan_data,
@@ -178,6 +190,7 @@ fit <- model$sample(
   parallel_chains = 4,
   refresh = 100,
   output_dir = here(results_path, model_id),
+  init = init_fn
 )
 
 fit$draws()
