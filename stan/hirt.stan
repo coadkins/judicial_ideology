@@ -1,11 +1,3 @@
-functions {
-    vector standardize(vector x) {
-      real mu = mean(x);
-      real sigma = sd(x);
-      return (x - mu) / sigma;
-    }
-  }
-
 data {
     int<lower=1> N;
     int<lower=1> N_case_id;
@@ -20,8 +12,8 @@ data {
 }
 
 parameters {
-    vector[N_judge] theta_raw;            // ability score
-    real exp_sigma_theta;                 // homoskedastic variance for all groups 
+    vector[N_judge] theta_raw;
+    real<lower=0> sigma_theta;             // homoskedastic variance for all groups 
     vector[K] gamma;                      // coef. for mu_theta predictors
     vector[N_case_id] alpha;              // intercept
     vector[N_case_id] beta;               // discrimination score
@@ -29,36 +21,38 @@ parameters {
 
 transformed parameters {
 vector[N_judge] theta;
+vector[G] mu_theta_raw;
+real mu_theta_mean;
+real mu_theta_sd;
 vector[G] mu_theta;
-real sigma_theta;
-// calculate mean ability for each group
-  for (g in 1:G) {
-    mu_theta[g] = x[g, ]*gamma;  
-  }
 
-sigma_theta = log(exp_sigma_theta);
-// force sigma_theta to be positive
-// demean and standardize theta
-  theta = standardize(theta_raw); 
+// calculate mean ability for each group
+mu_theta_raw = x*gamma;
+
+// standardize group means
+mu_theta_mean = mean(mu_theta_raw);
+mu_theta_sd = sd(mu_theta_raw);
+
+for (g in 1:G) {
+        mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
+    }
+
+// Non-centered parametrization 
+for (i in 1:N_judge) {
+theta[i] = mu_theta[group_id[i]] + sigma_theta * theta_raw[i];
+}
 }
 
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
 // ideology (theta) and related parameters
-// Compute group-level parameters per judge
-// prior for group level mean predictors
-  gamma ~ normal(0,1); 
-
-  for (i in 1:N_judge) {
-    theta_raw[i] ~ normal(mu_theta[group_id[i]],
-					 sigma_theta); //sample judge-level ability scores
-  } 
-
-// Priors for case-specific parameters
-alpha ~ std_normal(); // 
-beta ~ normal(0,3);
 theta_raw ~ std_normal();
-exp_sigma_theta ~ lognormal(0, .5); 
+// prior for group level mean predictors
+gamma ~ normal(0,2); 
+// Priors for case-specific parameters
+alpha ~ normal(0, 2); // 
+beta ~ normal(1,1);
+sigma_theta ~ lognormal(-1, 0.5); 
 
 // Model of outcomes 
 for (n in 1:N) {
