@@ -28,10 +28,9 @@ sim_df <- qs::qread(here("results", model_date, "sim_data_1D.qs"))
 group_ids <- get_group_ids(sim_df, judge_id, year)
 group_order <- unique(group_ids[, "g"])
 
-# identify signs for mu_theta
 id_array <- identify_chains(
   post_array = fit_array,
-  param = mu_theta[i],
+  param_hat = mu_theta[i],
   sign = -1
 )
 
