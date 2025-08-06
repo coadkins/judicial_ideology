@@ -80,16 +80,15 @@ reshape_posterior <- function(
 
 # -----------------------------------------------------------------------------
 
-# TO DO: Rework these to use "param_hat" instead of parameter
-# identify_sign <- function(
-#     post_array = fit_array,
-#     param_hat = theta[i],
-#     sign = -1
-# ) {
-#     out <- identify_draws(fit_array, param_hat) |>
-#         identify_chains(param_hat, sign)
-#     return(out)
-# }
+identify_signs <- function(
+    post_array = fit_array,
+    param_hat = mu_theta[i],
+    sign = -1
+) {
+    id_chain <- identify_chains(fit_array, {{ param_hat }})
+    out <- identify_draws(id_chain, {{ param_hat }})
+    return(out)
+}
 
 identify_draws <- function(
     post_array = fit_array,
@@ -106,6 +105,7 @@ identify_draws <- function(
         gsub("^\\~|\\[.*", "", x = _) |>
         rlang::parse_expr()
     # figure out which draws to flip
+    # use chains/iterations since that is how draws_array is structured
     draw_flips <- post_long_df |>
         dplyr::group_by(.draw) |>
         dplyr::summarise(
