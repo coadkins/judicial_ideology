@@ -47,4 +47,4 @@ RUN Rscript R/install_cmdstan.R
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # Run targets pipeline
-ENTRYPOINT Rscript /usr/R/stan_hirt.R
+ENTRYPOINT Rscript /usr/R/hirt-hom.R
