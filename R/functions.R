@@ -1,5 +1,4 @@
-
-#' Return dataframe matching individuals to groups, in the right order 
+#' Return dataframe matching individuals to groups, in the right order
 #'
 #' @param data_df data frame of observations
 #' @param i_var expression, a data frame column designating individuals
@@ -12,9 +11,9 @@ get_group_ids <- function(data_df, i_var, g_var) {
     # get group_ids and preserve input order
     out <- data_df |>
         dplyr::distinct(!!i_var, !!g_var) |>
-        dplyr::select(g = !!g_var) |>   # assign i so that its order
+        dplyr::select(g = !!g_var) |> # assign i so that its order
         dplyr::mutate(i = row_number()) # matches the order that
-                                 # data entered the model
+    # data entered the model
     return(out)
 }
 
@@ -31,7 +30,8 @@ get_group_ids <- function(data_df, i_var, g_var) {
 draw_post_group_means <- function(post_array, param_hat, group_ids) {
     param_hat <- rlang::enquo(param_hat)
     value_hat_col <- extract_var_name(param_hat) # name of estimator column
-    mu_value_hat_col <- stringi::stri_c( # name of group means column
+    mu_value_hat_col <- stringi::stri_c(
+        # name of group means column
         "mu_",
         rlang::as_label(value_hat_col),
         "[g]"
@@ -53,29 +53,29 @@ draw_post_group_means <- function(post_array, param_hat, group_ids) {
 
 # -----------------------------------------------------------------------------
 
-#' Reorder posterior to match order of stan data 
+#' Reorder posterior to match order of stan data
 #'
 #' @param post_array a draws array object, returned by `draws()` method
-#' @param param_hat expression, the parameter estimated by the draws from the posterior distribution, 
+#' @param param_hat expression, the parameter estimated by the draws from the posterior distribution,
 #' specified in `tidybayes()` syntax.
 #' @param order a vector of unit ids, in the order they appear in the model data
-#' 
+#'
 #' @returns a dataframe
 reshape_posterior <- function(
-    post_array, 
+    post_array,
     param_hat,
-    order) {
-  param_hat <- enquo(param_hat)
-  index_label <- extract_index(param_hat) |> 
-      rlang::expr_deparse()
-  # create a data frame from the draws array  
-  subset_df <- tidybayes::spread_draws(post_array, !!param_hat)
-  # match `i` in subset_df to id var in simulated data
-  order_df <- tibble(id = order, 
-    !!index_label := seq_along(order))
+    order
+) {
+    param_hat <- enquo(param_hat)
+    index_label <- extract_index(param_hat) |>
+        rlang::expr_deparse()
+    # create a data frame from the draws array
+    subset_df <- tidybayes::spread_draws(post_array, !!param_hat)
+    # match `i` in subset_df to id var in simulated data
+    order_df <- tibble(id = order, !!index_label := seq_along(order))
 
-  out <- left_join(subset_df, order_df, by = index_label)
-  return(out)
+    out <- left_join(subset_df, order_df, by = index_label)
+    return(out)
 }
 
 # -----------------------------------------------------------------------------
@@ -136,11 +136,11 @@ identify_draws <- function(
     # this is a valid input for posterior::mcmc_trace()
     return(id_array)
 }
-}
 
 identify_chains <- function(
     post_array = fit_array,
-    param_hat = theta[i], # formatted for tidybayes::spread_draws()
+    # param_hat is formatted for use with tidybayes::spread_draws()
+    param_hat = theta[i],
     sign = -1
 ) {
     # capture the tidybayes syntax in a quosure
@@ -168,7 +168,7 @@ identify_chains <- function(
     cols <- chain_flips
     # create a logical vector for every element col
     # that needs to be flipped
-    vars <- stringr::str_detect(
+    vars_lgl <- stringr::str_detect(
         unlist(dimnames(id_array)["variable"]), #var name for evey element
         paste0(
             rlang::as_label(value_hat_col), # regexp made from `value_col` expression
@@ -176,7 +176,7 @@ identify_chains <- function(
         )
     )
     suppressWarnings(
-        id_array[, cols, vars] <- -1 * id_array[, cols, vars]
+        id_array[, cols, vars_lgl] <- -1 * id_array[, cols, vars_lgl]
     )
     # return in the same format as input - draws_array
     # this is a valid input for posterior::mcmc_trace()
