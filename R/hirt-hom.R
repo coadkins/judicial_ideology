@@ -6,11 +6,12 @@ library(purrr)
 library(tidyr)
 library(qs)
 
+# rudimentary model id
+# todo: is it possible to use the git commit hash instead?
+model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(100:999, 1))
+
 # simulate data
 set.seed(123)
-
-# rudimentary model id
-model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(10:99, 1))
 
 ## define constants
 n_cohort <- 20
