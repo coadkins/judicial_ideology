@@ -12,7 +12,7 @@ library(tidyr)
 library(qs)
 
 # reference model date
-model_date <- "0804202540"
+model_date <- "0806202540"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
