@@ -72,9 +72,9 @@ reshape_posterior <- function(
     # create a data frame from the draws array
     subset_df <- tidybayes::spread_draws(post_array, !!param_hat)
     # match `i` in subset_df to id var in simulated data
-    order_df <- tibble(id = order, !!index_label := seq_along(order))
+    order_df <- tibble::tibble(id = order, !!index_label := seq_along(order))
 
-    out <- left_join(subset_df, order_df, by = index_label)
+    out <- dplyr::left_join(subset_df, order_df, by = index_label)
     return(out)
 }
 
