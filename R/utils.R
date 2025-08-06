@@ -19,3 +19,28 @@ return(out)
 }
 
 # ------------------------------------------------------------------------------
+# 
+#' Use qs::qs_read or cmdstanr::read_cmdstan_csv() depending on the supplied path 
+#'
+#' @param path either the path to a single .qs file, or a directory containing
+#'  .csv files for each chain of the cmdstan sampler
+#' @param ... optionally, supply arguments to read_cmdstan_csv(), useful for
+#' reading in only a subset of variables
+#'
+#' @returns a draws array object
+load_posterior_draws <- function(path, ...) {
+withr::defer(rm(fit))
+if (tools::file_ext(path) == "qs") {
+  fit <- qs::qsread(path)
+  return(fit$draws())
+} else {
+  # OR load from .csv files if saving to .qs failed
+  fit <- cmdstanr::read_cmdstan_csv(list.files(
+    path,
+    pattern = "*.csv",
+    full.names = TRUE
+  ), 
+  variables = ...)
+  return(fit[["post_warmup_draws"]])
+}
+}
