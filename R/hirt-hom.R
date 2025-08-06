@@ -16,8 +16,8 @@ model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(10:99, 1))
 n_cohort <- 20
 year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
-n_judge <- n_cohort * 15
-n_cases <- n_judge * 30
+n_judge <- n_cohort * 50
+n_cases <- n_judge * 50
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
