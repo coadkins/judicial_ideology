@@ -21,21 +21,21 @@ parameters {
 
 transformed parameters {
 vector[N_judge] theta;
-vector[G] mu_theta_raw;
+vector[G] mu_theta;
 real mu_theta_mean;
 real mu_theta_sd;
-vector[G] mu_theta;
+// vector[G] mu_theta;
 
 // calculate mean ability for each group
-mu_theta_raw = x*gamma;
+mu_theta = x*gamma;
 
 // standardize group means
-mu_theta_mean = mean(mu_theta_raw);
-mu_theta_sd = sd(mu_theta_raw);
+// mu_theta_mean = mean(mu_theta_raw);
+// mu_theta_sd = sd(mu_theta_raw);
 
-for (g in 1:G) {
-        mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
-    }
+// for (g in 1:G) {
+//         mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
+//     }
 
 // Non-centered parametrization 
 for (i in 1:N_judge) {

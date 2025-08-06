@@ -77,13 +77,13 @@ theta_raw_list <- Map(
 
 # "standardize" the raw simulated theta
 
-theta_standardized_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
+theta_vector <- do.call(c, theta_raw_list)
 
 # combine the values into a data.frame
-theta_df <- theta_standardized_vector |>
+theta_df <- theta_vector |>
   as.data.frame() |>
   mutate(
-    judge_id = 1:length(theta_standardized_vector),
+    judge_id = 1:length(theta_vector),
     year = factor(
       rep(1:n_cohort, each = n_judge / n_cohort)
     )
