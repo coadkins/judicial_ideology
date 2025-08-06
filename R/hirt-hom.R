@@ -169,7 +169,7 @@ stan_data <- list(
 )
 
 # compile cmdstanr model
-model <- here("stan", "hirt.stan") |>
+model <- here("stan", "hirt-hom.stan") |>
   cmdstan_model()
 
 # Create initialization function
