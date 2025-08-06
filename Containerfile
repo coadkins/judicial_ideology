@@ -48,3 +48,6 @@ RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofil
 
 # Run targets pipeline
 ENTRYPOINT Rscript /usr/R/hirt-hom.R
+
+# Set environmental variables
+ENV RENV_WATCHDOG_ENABLED FALSE
