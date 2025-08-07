@@ -90,23 +90,14 @@ identify_signs <- function(
     return(out)
 }
 
-#' Identify and rotate draws for a draws_array object 
-#'
-#' @param post_array a draws_array object
-#' @param param_hat expression, the parameter to identify, passed as an
-#' argument to tidybayes::spread_draws()
-#' @param sign the default rotation for a given draw (1 or -1)
-#'
-#' @returns a draws_array object
 identify_draws <- function(
     post_array = fit_array,
-    param_hat = theta[i],
-    sign = -1
+    param_hat = theta[i]
 ) {
     param_hat <- rlang::enquo(param_hat)
     # transform the input array into a `draws_df` objects
     post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
-        dplyr::ungroup()
+        ungroup()
     # convert tidybayes syntax for variable names
     # into a quosure that identifies the column
     # containing the parameter values
@@ -116,22 +107,22 @@ identify_draws <- function(
     # figure out which draws to flip
     # use chains/iterations since that is how draws_array is structured
     draw_flips <- post_long_df |>
-        dplyr::group_by(.iteration, .chain) |>
-        dplyr::mutate(
-            mean_d = mean.default(!!value_hat_col),
-            flip = (sign * mean_d) < 0,
-            !!value_hat_col := case_when(
-                flip == TRUE ~ -1 * !!value_hat_col,
-                .default = !!value_hat_col
-            )
-        )
-    sub_id_array <- tidybayes::unspread_draws(draw_flips, !!param_hat) |>
-        posterior::as_draws_array()
+        dplyr::group_by(.draw) |>
+        dplyr::summarise(
+            flip = (sign * mean.default(!!value_hat_col)) < 0,
+            .groups = "drop"
+        ) |>
+        dplyr::select(.draw, flip) |>
+        dplyr::filter(flip == TRUE) |>
+        pull(.chain)
     # copy the original array and return it with flipped values
     id_array <- post_array
+    # create a logical vector for for every element row
+    # that needs to be flipped
+    cols <- draw_flips
     # create a logical vector for every element col
-    # that needs to be replaced in the original 
-    vars_lgl <- stringr::str_detect(
+    # that needs to be flipped
+    vars <- stringr::str_detect(
         unlist(dimnames(id_array)["variable"]), #var name for evey element
         paste0(
             rlang::as_label(value_hat_col), # regexp made from `value_col` expression
@@ -139,7 +130,7 @@ identify_draws <- function(
         )
     )
     suppressWarnings(
-        id_array[, , vars_lgl] <- sub_id_array
+        id_array[, cols, vars] <- -1 * id_array[, cols, vars]
     )
     # return in the same format as input - draws_array
     # this is a valid input for posterior::mcmc_trace()
