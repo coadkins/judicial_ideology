@@ -14,64 +14,67 @@ data {
 }
 
 parameters {
-    vector[N_judge] theta_raw;
+    // parameters related to ability scores
+    vector[N_judge] theta_raw;                // ability score for each judge
     real<lower=0> sigma_theta;                // homoskedastic variance for all groups of judges
     vector[K] gamma;                          // coef. for mu_theta predictors
-    vector[N_case_id] alpha;                  // intercept
+    // other parameters
+    vector[N_case_id] alpha_raw;              // intercept for each case
     vector[N_case_id] beta_raw;               // discrimination score
-    real<lower=0> sigma_beta;                 // homoskedastic variance for all groups of cases
-    vector[G] mu_theta_raw;
-    vector[B] mu_beta_raw;
 }
 
 transformed parameters {
 vector[N_judge] theta;
 vector[N_case_id] beta;
+vector[N_case_id] alpha;
+// group means
 vector[G] mu_theta;
 vector[B] mu_beta;
-real mu_theta_mean;
-real mu_theta_sd;
-
-// calculate mean ability for each group
-mu_theta = x*gamma;
-
-// standardize group means
-mu_theta_mean = mean(mu_theta_raw);
-mu_theta_sd = sd(mu_theta_raw);
-
-for (g in 1:G) {
-        mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
-    }
-
-real mu_beta_mean = mean(mu_beta_raw);
-real mu_beta_sd = sd(mu_beta_raw);
-
-for (b in 1:B) {
-    mu_beta[b] = (mu_beta_raw[b] - mu_beta_mean) / mu_beta_sd;
-}
-
-// Non-centered parametrization for theta
-for (i in 1:N_judge) {
-theta[i] = mu_theta[group_id[i]] + sigma_theta * theta_raw[i];
-}
+vector[B] mu_alpha;
+// group sds
+real<lower=0> sigma_beta;
+real<lower=9> sigma_alpha; 
 
 // Non-centered parametrization for beta
 for (i in 1:N_case_id) {
 beta[i] = mu_beta[type[i]] + sigma_beta * beta_raw[i];
 }
+
+// Non-centered parametrization for alpha
+for (i in 1:N_case_id) {
+alpha[i] = mu_alpha[type[i]] + sigma_alpha * alpha_raw[i];
 }
 
+// calculate mean ability for each group
+vector[G] mu_theta_raw = x*gamma;
+real mu_theta_mean = mean(mu_theta_raw);
+real mu_theta_sd = sd(mu_theta_raw);
+
+// standardize and scale mu_theta draws
+for (g in 1:G) {
+        mu_theta[g] = (mu_theta[g] - mu_theta_mean) / mu_theta_sd;
+    }
+    
+// Non-centered parametrization for theta
+for (i in 1:N_judge) {
+theta[i] = mu_theta[group_id[i]] + sigma_theta * theta_raw[i];
+}
+
+}
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
 // ideology (theta) and related parameters
-theta_raw ~ std_normal();
+sigma_theta ~ lognormal(-1, 0.5);
 // prior for group level mean predictors
 gamma ~ normal(0,2); 
 // Priors for case-specific parameters
-alpha ~ normal(0, 2); // 
+alpha_raw ~ std_normal();
 beta_raw ~ std_normal();
-sigma_theta ~ lognormal(-1, 0.5);
-sigma_beta ~ lognormal(-1, 0.5); 
+theta_raw ~ std_normal();
+mu_alpha ~ std_normal();
+mu_beta ~ std_normal();
+sigma_alpha ~ cauchy(0, 5);
+sigma_beta ~ cauchy(0, 5);
 
 // Model of outcomes 
 for (n in 1:N) {
