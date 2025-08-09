@@ -172,10 +172,10 @@ stan_data <- list(
   outcome = with(cases_df, outcome[order(case_id)]),
   ii = with(cases_df, judge_id[order(case_id)]),
   jj = with(cases_df, case_id[order(case_id)]),
+  nn = with(cases_df, cases_df[order(case_id), ]) |>
+    with(data = _, case_type[order(case_id)]),
   group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
     with(data = _, year[order(case_id)]),
-  type = with(cases_df, cases_df[!duplicated(case_id), ]) |>
-    with(data = _, case_type[order(case_id)]),
   x = x
 )
 
@@ -187,9 +187,11 @@ model <- here("stan", "hirt-hom.stan") |>
 init_fn <- function() {
   list(
     gamma = rnorm(stan_data$K, 0, 0.5), # Smaller initial values
-    sigma_theta = 0.5, # Conservative sigma
+    sigma_theta = 1, # Conservative sigma
+    sigma_beta = 1,
+    sigma_alpha = 1,
+    alpha_raw = rnorm(stan_data$N_case_id, 0, 0.1),
     theta_raw = rnorm(stan_data$N_judge, 0, 0.1), # Small theta_raw values
-    alpha = rnorm(stan_data$N_case_id, 0, 0.1),
     beta_raw = rnorm(stan_data$N_case_id, 0, 0.5)
   )
 }
