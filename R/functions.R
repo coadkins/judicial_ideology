@@ -100,8 +100,7 @@ identify_signs <- function(
 #' @returns a draws_array object
 identify_draws <- function(
     post_array = fit_array,
-    param_hat = theta[i],
-    sign = -1
+    param_hat = theta[i]
 ) {
     param_hat <- rlang::enquo(param_hat)
     # transform the input array into a `draws_df` objects
@@ -119,7 +118,7 @@ identify_draws <- function(
         dplyr::group_by(.iteration, .chain) |>
         dplyr::mutate(
             mean_d = mean.default(!!value_hat_col),
-            flip = (sign * mean_d) < 0,
+            flip = (sign(!!value_hat_col) * sign(mean_d)) < 0,
             !!value_hat_col := case_when(
                 flip == TRUE ~ -1 * !!value_hat_col,
                 .default = !!value_hat_col
