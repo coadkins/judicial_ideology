@@ -19,6 +19,7 @@ year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
 n_judge <- n_cohort * 50
 n_cases <- n_judge * 50
+n_case_types <- 50
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -115,29 +116,36 @@ ggsave(
 )
 
 ## simulate judges and cases
-draw_case <- function(thetas) {
+draw_case <- function(thetas, mu_beta) {
   alpha <- rnorm(1, 0, 1)
-  beta <- rnorm(1, 0, 3) # beta in D dimensions
+  beta <- rnorm(1, mu_beta, 3) # beta in D dimensions
   linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
   y_out <- rbinom(prob = link_func, n = 1, size = 1)
   return(y_out)
 }
 
-draw_panel <- function(case_id, theta_df) {
+draw_panel <- function(case_id, theta_df, mu_beta) {
   panel <- theta_df[sample(1:n_judge, size = 3), ] # 3 judges per panel
-  thetas <- as.matrix(panel[, 1]) # 2 thetas per judge
-  case <- apply(thetas, MARGIN = 1, FUN = draw_case)
+  thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
+  mu_beta <- mu_beta[sample(1:nrow(mu_beta), size = 1), ] # 1 case type per panel 
+  case <- apply(thetas, MARGIN = 1, FUN = draw_case, mu_beta = mu_beta[, "value"])
   panel$outcome <- case
   panel$case_id <- case_id
+  panel$case_type <- mu_beta[, "type"]
   return(panel)
 }
 
 cases_df <- Map(
   draw_panel,
   case_id = 1:n_cases,
-  MoreArgs = list(theta_df = theta_df)
-) |>
+  MoreArgs = list(theta_df = theta_df,
+  mu_beta = data.frame(
+    type = 1:n_case_types, 
+    value = rnorm(n_case_types, 0, 2)
+  )
+)
+)|>
   list_rbind()
 
 # save simulated data to use later
@@ -152,12 +160,12 @@ judge_covariates <- cases_df[!duplicated(cases_df$year), ] |>
   arrange(case_id) |>
   dplyr::select(party, year)
 
-
 x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
 
 stan_data <- list(
   N = nrow(cases_df),
   N_case_id = length(unique(cases_df$case_id)),
+  B = length(unique(cases_df$case_type)),
   N_judge = length(unique(cases_df$judge_id)),
   G = length(unique(cases_df[, "year"])),
   K = ncol(x),
@@ -166,6 +174,8 @@ stan_data <- list(
   jj = with(cases_df, case_id[order(case_id)]),
   group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
     with(data = _, year[order(case_id)]),
+  type = with(cases_df, cases_df[!duplicated(case_id), ]) |>
+    with(data = _, case_type[order(case_id)]),
   x = x
 )
 
@@ -180,7 +190,7 @@ init_fn <- function() {
     sigma_theta = 0.5, # Conservative sigma
     theta_raw = rnorm(stan_data$N_judge, 0, 0.1), # Small theta_raw values
     alpha = rnorm(stan_data$N_case_id, 0, 0.1),
-    beta = abs(rnorm(stan_data$N_case_id, 0, 0.5)) # Ensure positive beta
+    beta_raw = rnorm(stan_data$N_case_id, 0, 0.5)
   )
 }
 

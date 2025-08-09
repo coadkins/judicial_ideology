@@ -12,7 +12,7 @@ library(tidyr)
 library(qs)
 
 # reference model date
-model_date <- "0806202540"
+model_date <- "0806202588"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
@@ -29,7 +29,7 @@ sim_df <- qs::qread(here("results", model_date, "sim_data_1D.qs"))
 group_ids <- get_group_ids(sim_df, judge_id, year)
 group_order <- unique(group_ids[, "g"])
 
-id_array <- identify_draws(
+id_array <- identify_chains(
   post_array = fit_array,
   param_hat = mu_theta[i],
   sign = -1
