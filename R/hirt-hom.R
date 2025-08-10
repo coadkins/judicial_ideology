@@ -116,36 +116,47 @@ ggsave(
 )
 
 ## simulate judges and cases
-draw_case <- function(thetas, mu_beta) {
-  alpha <- rnorm(1, 0, 1)
-  beta <- rnorm(1, mu_beta, 3) # beta in D dimensions
+draw_case <- function(thetas, mu_beta, mu_alpha) {
+  alpha <- rnorm(1, mu_alpha, 1)
+  beta <- rnorm(1, mu_beta, 3) 
   linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
   y_out <- rbinom(prob = link_func, n = 1, size = 1)
   return(y_out)
 }
 
-draw_panel <- function(case_id, theta_df, mu_beta) {
+draw_panel <- function(case_id, theta_df, mu_case_df, case_type) {
   panel <- theta_df[sample(1:n_judge, size = 3), ] # 3 judges per panel
   thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
-  mu_beta <- mu_beta[sample(1:nrow(mu_beta), size = 1), ] # 1 case type per panel 
-  case <- apply(thetas, MARGIN = 1, FUN = draw_case, mu_beta = mu_beta[, "value"])
+  mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ])  # 1 case type per panel
+  case <- apply(
+    thetas,
+    MARGIN = 1,
+    FUN = draw_case,
+    mu_beta = with(mu_case_df, mu_case_df[type == case_type, "mu_beta"]),
+    mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"])
+  )
   panel$outcome <- case
   panel$case_id <- case_id
-  panel$case_type <- mu_beta[, "type"]
+  panel$case_type <- mu_case_df[, "type"]
   return(panel)
 }
+
+case_params <- data.frame(
+  type = 1:n_case_types,
+  mu_beta = rnorm(n_case_types, 0, 2),
+  mu_alpha = rnorm(n_case_types, 0, 1)
+)
 
 cases_df <- Map(
   draw_panel,
   case_id = 1:n_cases,
-  MoreArgs = list(theta_df = theta_df,
-  mu_beta = data.frame(
-    type = 1:n_case_types, 
-    value = rnorm(n_case_types, 0, 2)
+  case_type = sample(1:n_case_types, n_cases, replace = TRUE),
+  MoreArgs = list(
+    theta_df = theta_df,
+    mu_case_df = case_params
   )
-)
-)|>
+) |>
   list_rbind()
 
 # save simulated data to use later
