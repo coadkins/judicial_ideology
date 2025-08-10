@@ -6,15 +6,19 @@ library(purrr)
 library(tidyr)
 library(qs)
 
+# rudimentary model id
+model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(100:999, 1))
+
 # simulate data
 set.seed(123)
 
 ## define constants
-n_cohort <- 20 
+n_cohort <- 20
 year <- factor(1:n_cohort)
 party <- rbinom(n_cohort, size = 1, prob = .5)
-n_judge <- n_cohort * 10
-n_cases <- n_judge * 30 
+n_judge <- n_cohort * 50
+n_cases <- n_judge * 50
+n_case_types <- 50
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -54,28 +58,15 @@ construct_gamma <- function(party, year) {
   return(gamma)
 }
 
-construct_lambda <- function(party, year) {
-  z <- model.matrix(~ 1 + year)
-  dem_years <- which(party == 0 & seq_along(party) != 1) # exclude index 1 for "one-hot encoding"
-  lambda <- matrix(NA, ncol = ncol(z), nrow = 2)
-  lambda[, 1] <- 1 # intercept
-  lambda[1, -1] <- 0 # theta 1
-  lambda[2, dem_years] <- 0 # theta 2
-  lambda[2, -c(dem_years)] <- seq(
-    from = 1,
-    by = .2,
-    length.out = length(lambda[2, -c(dem_years)])
-  )
-  return(lambda)
-}
-
-draw_theta_ij_raw <- function(n, party, year, gamma, lambda) {
+# TO DO: make this reflect homoskedastic
+###############################################################################
+draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
   # variables predicting mu
   x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
   z <- model.matrix(~ 1 + year) #1xk row vector
   mu <- x %*% t(gamma)
   sigma_theta_chol <- z %*% t(lambda) |> as.vector() |> diag() # this is forcing orthagonality in my
-  sigma_theta <- sigma_theta_chol %*% t(sigma_theta_chol)      # simulation
+  sigma_theta <- sigma_theta_chol %*% t(sigma_theta_chol) # simulation
   # draw pairs of theta_ij
   out <- MASS::mvrnorm(n, mu, sigma_theta)
   return(out)
@@ -108,51 +99,58 @@ theta_raw_list <- Map(
     lambda = lambda_sim
   )
 )
-
+################################################################################
 # "whiten" the raw simulated theta
 theta_whitened_matrix <- theta_ij_whiten(do.call(rbind, theta_raw_list))
 
 # combine the values into a data.frame
 theta_df <- theta_whitened_matrix |>
   as.data.frame() |>
-  mutate(judge_id = 1:nrow(theta_whitened_matrix), 
-         year = factor(
-                      rep(1:n_cohort, each = n_judge/n_cohort))) |>
+  mutate(
+    judge_id = 1:nrow(theta_whitened_matrix),
+    year = factor(
+      rep(1:n_cohort, each = n_judge / n_cohort)
+    )
+  ) |>
   left_join(data.frame(year = factor(1:n_cohort), party = party), by = "year")
 
 colnames(theta_df) <- c("theta_1", "theta_2", "judge_id", "year", "party")
 
 # output plot of simulated data
- library(ggplot2)
- library(patchwork)
- 
- theta_1_plot <- theta_df |>
-   ggplot(aes(x = year, y = theta_1, fill = as.factor(party))) +
-   geom_boxplot() +
-   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-   theme_minimal() +
-   theme(legend.position = "none") +
-   ylab("Theta D=1") +
-   xlab(NULL) +
-   with(theta_df, ylim(min(theta_2), max(theta_1))) +
-   ggtitle("Simulated Distribution of Theta")
- 
- theta_2_plot <- theta_df |>
-   ggplot(aes(x = year, y = theta_2, fill = as.factor(party))) +
-   geom_boxplot() +
-   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-   theme_minimal() +
-   theme(legend.position = "none") +
-   ylab("Theta D=2") +
-   xlab("Group Number") +
-   with(theta_df, ylim(min(theta_2), max(theta_1)))
- 
-  out <- theta_1_plot / theta_2_plot
- 
-  ggsave(here("graphics", "2D_corplot_n.png"), plot = out)
+library(ggplot2)
+library(patchwork)
+
+theta_1_plot <- theta_df |>
+  ggplot(aes(x = year, y = theta_1, fill = as.factor(party))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylab("Theta D=1") +
+  xlab(NULL) +
+  with(theta_df, ylim(min(theta_2), max(theta_1))) +
+  ggtitle("Simulated Distribution of Theta")
+
+theta_2_plot <- theta_df |>
+  ggplot(aes(x = year, y = theta_2, fill = as.factor(party))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylab("Theta D=2") +
+  xlab("Group Number") +
+  with(theta_df, ylim(min(theta_2), max(theta_1)))
+
+out <- theta_1_plot / theta_2_plot
+
+ggsave(
+  here("graphics", model_id, "2D_corplot_n.png"),
+  plot = out,
+  create.dir = TRUE
+)
 
 ## simulate judges and cases
-draw_case <- function(thetas) {
+draw_case <- function(thetas, mu_beta, mu_alpha) {
   alpha <- rnorm(1, 0, 1)
   beta <- MASS::mvrnorm(1, c(0, 0), diag(2)) # beta in D dimensions
   linear_func <- alpha + t(beta) %*% thetas
@@ -201,7 +199,7 @@ stan_data <- list(
   ii = with(cases_df, judge_id[order(case_id)]),
   jj = with(cases_df, case_id[order(case_id)]),
   group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
-              with(data = _, year[order(case_id)]),
+    with(data = _, year[order(case_id)]),
   x = x,
   z = z
 )
