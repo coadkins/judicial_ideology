@@ -46,8 +46,8 @@ RUN Rscript R/install_cmdstan.R
 # set up cmdstan path
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
-# Run targets pipeline
-ENTRYPOINT Rscript /usr/R/hirt-hom.R
+# Default to bash so I can choose which script to run 
+ENTRYPOINT /bin/bash 
 
 # Set environmental variables
 ENV RENV_WATCHDOG_ENABLED FALSE
