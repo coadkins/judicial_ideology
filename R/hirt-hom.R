@@ -5,7 +5,7 @@ library(MASS)
 library(purrr)
 library(tidyr)
 library(qs)
-
+source(here::here("R", "sim_functions.R"))
 # rudimentary model id
 # todo: is it possible to use the git commit hash instead?
 model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(100:999, 1))
@@ -118,7 +118,7 @@ ggsave(
 ## simulate judges and cases
 draw_case <- function(thetas, mu_beta, mu_alpha) {
   alpha <- rnorm(1, mu_alpha, 1)
-  beta <- rnorm(1, mu_beta, 3) 
+  beta <- rnorm(1, mu_beta, 3)
   linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
   y_out <- rbinom(prob = link_func, n = 1, size = 1)
@@ -128,7 +128,7 @@ draw_case <- function(thetas, mu_beta, mu_alpha) {
 draw_panel <- function(case_id, theta_df, mu_case_df, case_type) {
   panel <- theta_df[sample(1:n_judge, size = 3), ] # 3 judges per panel
   thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
-  mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ])  # 1 case type per panel
+  mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ]) # 1 case type per panel
   case <- apply(
     thetas,
     MARGIN = 1,
@@ -185,9 +185,20 @@ stan_data <- list(
   jj = with(cases_df, case_id[order(case_id)]),
   nn = with(cases_df, cases_df[order(case_id), ]) |>
     with(data = _, case_type[order(case_id)]),
-  group_id = with(cases_df, cases_df[!duplicated(judge_id), ]) |>
-    with(data = _, year[order(case_id)]),
   x = x
+)
+
+# Append additional data that defines indices that facilitate
+# vectorized sampling in Stan
+stan_data <- c(
+  stan_data,
+  gen_group_idx(cases_df, "judge_id", "year"),
+  gen_group_idx(
+    cases_df,
+    "case_id",
+    "case_type",
+    names = c("cases_by_type", "type_start", "type_end")
+  )
 )
 
 # compile cmdstanr model
