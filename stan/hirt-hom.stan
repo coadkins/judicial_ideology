@@ -10,12 +10,13 @@ data {
     array[N] int<lower=1, upper=N_case_id> jj;           //tracks case for obs. n
     matrix[G, K] x;                                      // party, cohort and intercept to model group mean
     // I use these data structures to facilitate identification
-    int<lower=1, upper=N_judge> lib_judge_idx;
-    int<lower=1, upper=N_judge> con_judge_idx; 
+    int<lower=1, upper=G> mu_theta_fixed_idx;
+    int<lower=1, upper=G> mu_theta_pos_idx;
+    int<lower=1, upper=G> mu_theta_neg_idx;
     // I use these data structures to mimic ragged arrays of judges and cases
     // This allows me to vectorize sampling within groups, which is much
     // faster than looping across all judges and individuals
-    array[N_judge - 2] int judges_by_group;
+    array[N_judge] int judges_by_group;
     array[G] int group_start;
     array[G] int group_end;
     array[N_case_id] int cases_by_type;
@@ -25,7 +26,7 @@ data {
 
 parameters {
     // parameters related to ability scores
-    vector[N_judge - 2] theta_free;               // ability score for each judge
+    vector[N_judge] theta;               // ability score for each judge
     real<lower=0> sigma_theta;           // homoskedastic variance for all groups of judges
     vector[K] gamma;                     // coef. for mu_theta predictors
     // other parameters
@@ -39,32 +40,29 @@ parameters {
 
 transformed parameters {
 // construct theta, including constrained values
-vector[N_judge] theta;
 // group means
   vector[G] mu_theta;
   // calculate mean ability for each group
   vector[G] mu_theta_raw = x*gamma;
+  // calculate mu_theta for the positive and negative constrained groups
+  mu_theta_raw[mu_theta_pos_idx] = abs(mu_theta_raw[mu_theta_pos_idx]);
+  mu_theta_raw[mu_theta_neg_idx] = -1 * abs(mu_theta_raw[mu_theta_neg_idx]);
+
+  // standardize and scale mu_theta draws
   real mu_theta_mean = mean(mu_theta_raw);
   real mu_theta_sd = sd(mu_theta_raw);
-  
-  // standardize and scale mu_theta draws
+{  
   for(g in 1:G){
+    if (g == mu_theta_fixed_idx) {
+  // fix mu_theta for the first group/period
+      mu_theta[g] = 0;
+   } else {
     mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
-}
-{
-        int free_idx = 1;
-        for (j in 1:N_judge) {
-            if (j == lib_judge_idx) {
-                theta[j] = -2.0;  // Fixed liberal judge
-            } else if (j == con_judge_idx) {
-                theta[j] = 2.0;   // Fixed conservative judge
-            } else {
-                theta[j] = theta_free[free_idx];
-                free_idx += 1;
-            }
-        }
-    }
+   }
   }
+}
+}
+
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
 // define variables that do not need to sampled
@@ -82,7 +80,7 @@ model {
 
 // iterate over groups for theta hierarchical prior
 for (g in 1:G) {
-  theta_free[judges_by_group[group_start[g]:group_end[g]]] ~ 
+  theta[judges_by_group[group_start[g]:group_end[g]]] ~ 
   normal(mu_theta[g], sigma_theta);
 }
 

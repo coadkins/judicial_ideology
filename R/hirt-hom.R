@@ -186,37 +186,32 @@ stan_data <- list(
   x = x
 )
 
-# append additional data that facilities identification in Stan
-# by fixing theta values for two judges
-
-lib_judge_idx <- fix_judge_idx(cases_df, "judge_id", "theta", target = -2)
-con_judge_idx <- fix_judge_idx(cases_df, "judge_id", "theta", target = 2)
-
-# Because Stan only samples the non-fixed judges, we have to extract the other
-# two and relevel judge_ids to use as indices in the sampling loop
-cases_df_free <- cases_df |>
-  filter(!(judge_id %in% c(lib_judge_idx, con_judge_idx))) |>
-  # relevel judge_ids to reflect extracted individuals
-  mutate(
-    judge_id = judge_id -
-      (judge_id > lib_judge_idx) -
-      (judge_id > con_judge_idx)
-  )
 
 # Append additional data that defines indices that facilitate
 # vectorized sampling in Stan
-
 stan_data <- c(
   stan_data,
-  gen_group_idx(cases_df_free, "judge_id", "year"),
+  gen_group_idx(cases_df, "judge_id", "year"),
   gen_group_idx(
-    cases_df_free,
+    cases_df,
     "case_id",
     "case_type",
     names = c("cases_by_type", "type_start", "type_end")
+  )
+)
+
+# Append additional data to facilitate identifcation
+stan_data <- c(
+  stan_data,
+  mu_theta_fixed_idx = 1,
+  mu_theta_pos_idx = with(
+    judge_covariates,
+    max(as.numeric(judge_covariates[party == 1, "year"]))
   ),
-  lib_judge_idx = lib_judge_idx,
-  con_judge_idx = con_judge_idx
+  mu_theta_neg_idx = with(
+    judge_covariates,
+    max(as.numeric(judge_covariates[party == 0, "year"]))
+  )
 )
 
 # compile cmdstanr model
