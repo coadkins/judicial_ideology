@@ -183,22 +183,40 @@ stan_data <- list(
   outcome = with(cases_df, outcome[order(case_id)]),
   ii = with(cases_df, judge_id[order(case_id)]),
   jj = with(cases_df, case_id[order(case_id)]),
-  nn = with(cases_df, cases_df[order(case_id), ]) |>
-    with(data = _, case_type[order(case_id)]),
   x = x
 )
 
+# append additional data that facilities identification in Stan
+# by fixing theta values for two judges
+
+lib_judge_idx <- fix_judge_idx(cases_df, "judge_id", "theta", target = -2)
+con_judge_idx <- fix_judge_idx(cases_df, "judge_id", "theta", target = 2)
+
+# Because Stan only samples the non-fixed judges, we have to extract the other
+# two and relevel judge_ids to use as indices in the sampling loop
+cases_df_free <- cases_df |>
+  filter(!(judge_id %in% c(lib_judge_idx, con_judge_idx))) |>
+  # relevel judge_ids to reflect extracted individuals
+  mutate(
+    judge_id = judge_id -
+      (judge_id > lib_judge_idx) -
+      (judge_id > con_judge_idx)
+  )
+
 # Append additional data that defines indices that facilitate
 # vectorized sampling in Stan
+
 stan_data <- c(
   stan_data,
-  gen_group_idx(cases_df, "judge_id", "year"),
+  gen_group_idx(cases_df_free, "judge_id", "year"),
   gen_group_idx(
-    cases_df,
+    cases_df_free,
     "case_id",
     "case_type",
     names = c("cases_by_type", "type_start", "type_end")
-  )
+  ),
+  lib_judge_idx = lib_judge_idx,
+  con_judge_idx = con_judge_idx
 )
 
 # compile cmdstanr model
@@ -232,4 +250,4 @@ fit$draws()
 try(fit$sampler_diagnostics(), silent = TRUE)
 try(fit$init(), silent = TRUE)
 try(fit$profiles(), silent = TRUE)
-qsave(fit, here(results_path, "stan_fit_1D.qs"))
+qsave(fit, here(results_path, "stan_fit_hom.qs"))
