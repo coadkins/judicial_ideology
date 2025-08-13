@@ -10,9 +10,9 @@ data {
     array[N] int<lower=1, upper=N_case_id> jj;           //tracks case for obs. n
     matrix[G, K] x;                                      // party, cohort and intercept to model group mean
     // I use these data structures to facilitate identification
-    int<lower=1, upper=G> mu_theta_fixed_idx;
-    int<lower=1, upper=G> mu_theta_pos_idx;
-    int<lower=1, upper=G> mu_theta_neg_idx;
+    int<lower=1, upper=K> gamma_fixed_idx;
+    int<lower=1, upper=K> gamma_pos_idx;
+    int<lower=1, upper=K> gamma_neg_idx;
     // I use these data structures to mimic ragged arrays of judges and cases
     // This allows me to vectorize sampling within groups, which is much
     // faster than looping across all judges and individuals
@@ -28,7 +28,10 @@ parameters {
     // parameters related to ability scores
     vector[N_judge] theta;               // ability score for each judge
     real<lower=0> sigma_theta;           // homoskedastic variance for all groups of judges
-    vector[K] gamma;                     // coef. for mu_theta predictors
+    vector[K] gamma_free;                // coef for mu predictors 
+    real<lower=0> gamma_pos;             // constraints on mu coefs
+    real gamma_fixed;
+    real<upper=0> gamma_neg;
     // other parameters
     vector[N_case_id] alpha;            // intercept for each case
     vector[N_case_id] beta;             // discrimination score
@@ -39,28 +42,39 @@ parameters {
 }
 
 transformed parameters {
+// construct gama
+  vector[K] gamma;                     // coef. for mu_theta predictors
+  {
+  int counter = 1;
+  for (k in 1:K) {
+    if(k==gamma_pos_idx) {
+      gamma[k] = gamma_pos; 
+  }
+    if (k==gamma_neg_idx) {
+      gamma[k] = gamma_neg;
+  }
+    if (k==gamma_fixed_idx) {
+      gamma[k] = gamma_fixed;
+  } else{
+    gamma[k] = gamma_free[counter];
+    counter += 1;
+} 
+  }
+}
+
 // construct theta, including constrained values
 // group means
   vector[G] mu_theta;
   // calculate mean ability for each group
   vector[G] mu_theta_raw = x*gamma;
-  // calculate mu_theta for the positive and negative constrained groups
-  mu_theta_raw[mu_theta_pos_idx] = abs(mu_theta_raw[mu_theta_pos_idx]);
-  mu_theta_raw[mu_theta_neg_idx] = -1 * abs(mu_theta_raw[mu_theta_neg_idx]);
 
   // standardize and scale mu_theta draws
   real mu_theta_mean = mean(mu_theta_raw);
   real mu_theta_sd = sd(mu_theta_raw);
-{  
+
   for(g in 1:G){
-    if (g == mu_theta_fixed_idx) {
-  // fix mu_theta for the first group/period
-      mu_theta[g] = 0;
-   } else {
     mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
    }
-  }
-}
 }
 
 model {
@@ -68,7 +82,12 @@ model {
 // define variables that do not need to sampled
 // prior for theta and related parameters
   sigma_theta ~ lognormal(0, 1);
-  gamma ~ normal(0,2); 
+  gamma_free ~ normal(0,2); 
+  // Very tight prior around 0 for fixed coefficient
+  gamma_fixed ~ normal(0, 0.1);
+   // Truncated normal priors for sign constraints
+  gamma_pos ~ normal(1.0, 0.5) T[0,];  // Truncated below at 0
+  gamma_neg ~ normal(-1.0, 0.5) T[,-0];  // Truncated above at 0
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta ~ std_normal();

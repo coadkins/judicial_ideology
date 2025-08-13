@@ -203,14 +203,14 @@ stan_data <- c(
 # Append additional data to facilitate identifcation
 stan_data <- c(
   stan_data,
-  mu_theta_fixed_idx = 1,
-  mu_theta_pos_idx = with(
+  gamma_fixed_idx = 1,
+  gamma_pos_idx = with(
     judge_covariates,
-    max(as.numeric(judge_covariates[party == 1, "year"]))
+    min(as.numeric(judge_covariates[party == 1, "year"]))
   ),
-  mu_theta_neg_idx = with(
+  gamma_neg_idx = with(
     judge_covariates,
-    max(as.numeric(judge_covariates[party == 0, "year"]))
+    min(as.numeric(judge_covariates[party == 0, "year"]))
   )
 )
 
@@ -219,17 +219,17 @@ model <- here("stan", "hirt-hom.stan") |>
   cmdstan_model()
 
 # Create initialization function
-init_fn <- function() {
-  list(
-    gamma = rnorm(stan_data$K, 0, 0.5), # Smaller initial values
-    sigma_theta = 1, # Conservative sigma
-    sigma_beta = 1,
-    sigma_alpha = 1,
-    alpha_raw = rnorm(stan_data$N_case_id, 0, 0.1),
-    theta_raw = rnorm(stan_data$N_judge, 0, 0.1), # Small theta_raw values
-    beta_raw = rnorm(stan_data$N_case_id, 0, 0.5)
-  )
-}
+# init_fn <- function() {
+#   list(
+#     gamma = rnorm(stan_data$K, 0, 0.5), # Smaller initial values
+#     sigma_theta = 1, # Conservative sigma
+#     sigma_beta = 1,
+#     sigma_alpha = 1,
+#     alpha_raw = rnorm(stan_data$N_case_id, 0, 0.1),
+#     theta_raw = rnorm(stan_data$N_judge, 0, 0.1), # Small theta_raw values
+#     beta_raw = rnorm(stan_data$N_case_id, 0, 0.5)
+#   )
+# }
 
 fit <- model$sample(
   data = stan_data,
@@ -237,8 +237,7 @@ fit <- model$sample(
   chains = 4,
   parallel_chains = 4,
   refresh = 100,
-  output_dir = here(results_path),
-  init = init_fn
+  output_dir = here(results_path)
 )
 
 fit$draws()
