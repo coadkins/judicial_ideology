@@ -34,12 +34,12 @@ construct_gamma <- function(party, year) {
   gamma[, year_cols] <- 0 # gamma for each year (theta1)
   # gamma for each party*year(theta)
   gamma[, party_year_cols[-dem_years]] <- seq(
-    from = 0,
+    from = -.2,
     by = -.4, # reps.
     length.out = length(party_year_cols[-dem_years])
   )
   gamma[, party_year_cols[dem_years]] <- seq(
-    from = 0,
+    from = .2,
     by = .4, # dems.
     length.out = length(party_year_cols[dem_years])
   )
@@ -206,11 +206,13 @@ stan_data <- c(
   gamma_fixed_idx = 1,
   gamma_pos_idx = with(
     judge_covariates,
-    min(as.numeric(judge_covariates[party == 1, "year"]))
+    # first Republican cohort should is constrained negative 
+    min(as.numeric(judge_covariates[party == 1 & year != 1, "year"])) + 20
   ),
   gamma_neg_idx = with(
     judge_covariates,
-    min(as.numeric(judge_covariates[party == 0, "year"]))
+    # first Democrat cohort is constrained positive
+    min(as.numeric(judge_covariates[party == 0 & year != 1, "year"])) + 20
   )
 )
 
