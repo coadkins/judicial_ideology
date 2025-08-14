@@ -11,8 +11,8 @@ data {
     matrix[G, K] x;                                      // party, cohort and intercept to model group mean
     // I use these data structures to facilitate identification
     int<lower=1, upper=K> gamma_fixed_idx;
-    int<lower=1, upper=K> gamma_pos_idx;
-    int<lower=1, upper=K> gamma_neg_idx;
+    int<lower=1, upper=B> mu_beta_pos_idx;
+    int<lower=1, upper=B> mu_beta_neg_idx;
     // I use these data structures to mimic ragged arrays of judges and cases
     // This allows me to vectorize sampling within groups, which is much
     // faster than looping across all judges and individuals
@@ -29,30 +29,24 @@ parameters {
     vector[N_judge] theta;               // ability score for each judge
     real<lower=0> sigma_theta;           // homoskedastic variance for all groups of judges
     vector[K] gamma_free;                // coef for mu predictors 
-    real<lower=0> gamma_pos;             // constraints on mu coefs
     real gamma_fixed;
-    real<upper=0> gamma_neg;
+    vector[B-2] mu_beta_free;            // group means for discrimination
+    real<lower=0> mu_beta_pos;           // constraints on mu beta coefs
+    real<upper=0> mu_beta_neg;
     // other parameters
     vector[N_case_id] alpha;            // intercept for each case
     vector[N_case_id] beta;             // discrimination score
-    vector[B] mu_beta;
     vector[B] mu_alpha;
     real<lower=0> sigma_beta;
     real<lower=0> sigma_alpha; 
 }
 
 transformed parameters {
-// construct gama
+// construct gamma, incorporating the fixed coefficient
   vector[K] gamma;                     // coef. for mu_theta predictors
   {
   int counter = 1;
   for (k in 1:K) {
-    if(k==gamma_pos_idx) {
-      gamma[k] = gamma_pos; 
-  }
-    if (k==gamma_neg_idx) {
-      gamma[k] = gamma_neg;
-  }
     if (k==gamma_fixed_idx) {
       gamma[k] = gamma_fixed;
   } else{
@@ -61,19 +55,31 @@ transformed parameters {
 } 
   }
 }
-
-// construct theta, including constrained values
+// construct mu_beta, incorporating constraints
+  vector[B] mu_beta;
+  {
+  int counter = 1;
+  for (b in 1:B) {
+    if (b==mu_beta_pos_idx) {
+      mu_beta[b] = mu_beta_pos;
+  } else if (b==mu_beta_neg_idx) {
+    mu_beta[b] = mu_beta_neg;
+  } else {
+    mu_beta[b] = mu_beta_free[counter];
+    counter += 1;
+} 
+  }
+}
 // group means
   vector[G] mu_theta;
   // calculate mean ability for each group
   vector[G] mu_theta_raw = x*gamma;
-
   // standardize and scale mu_theta draws
-  real mu_theta_mean = mean(mu_theta_raw);
-  real mu_theta_sd = sd(mu_theta_raw);
-
+  real mu_theta_raw_mean = mean(mu_theta_raw);
+  real mu_theta_raw_sd = sd(mu_theta_raw);
+ // standardize mu_theta
   for(g in 1:G){
-    mu_theta[g] = (mu_theta_raw[g] - mu_theta_mean) / mu_theta_sd;
+    mu_theta[g] = (mu_theta_raw[g] - mu_theta_raw_mean) / mu_theta_raw_sd;
    }
 }
 
@@ -86,34 +92,29 @@ model {
   // Very tight prior around 0 for fixed coefficient
   gamma_fixed ~ normal(0, 0.1);
    // Truncated normal priors for sign constraints
-  gamma_pos ~ normal(1.0, 0.5) T[0,];  // Truncated below at 0
-  gamma_neg ~ normal(-1.0, 0.5) T[,-0];  // Truncated above at 0
+  mu_beta_pos ~ normal(1.0, 0.5) T[0,];    // Truncated below at 0
+  mu_beta_neg ~ normal(-1.0, 0.5) T[,-0];  // Truncated above at 0
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
-  mu_beta ~ std_normal();
+  mu_beta_free ~ std_normal();
   sigma_alpha ~ lognormal(-1, 1);
   sigma_beta ~ lognormal(-1, 1);
-  
 // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
 // but vectorizing within groups is possible 
-
 // iterate over groups for theta hierarchical prior
 for (g in 1:G) {
   theta[judges_by_group[group_start[g]:group_end[g]]] ~ 
   normal(mu_theta[g], sigma_theta);
 }
-
 // iterate over case_types for alpha and beta hierarchical prior 
 for (b in 1:B) {
   // sample alpha
   alpha[cases_by_type[type_start[b]:type_end[b]]] ~ 
   normal(mu_alpha[b], sigma_alpha);
-
   // sample beta
   beta[cases_by_type[type_start[b]:type_end[b]]] ~ 
   normal(mu_beta[b], sigma_beta);
 }
-
 // iterate over observations for likelihood
 for(n in 1:N) {
 // sample likelihood 

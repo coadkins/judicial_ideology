@@ -4,14 +4,14 @@ library(here)
 library(MASS)
 library(purrr)
 library(tidyr)
-library(qs)
+library(qs2)
 source(here::here("R", "sim_functions.R"))
 # rudimentary model id
 # todo: is it possible to use the git commit hash instead?
 model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(100:999, 1))
 
 # simulate data
-set.seed(123)
+set.seed(02474)
 
 ## define constants
 n_cohort <- 20
@@ -78,8 +78,7 @@ theta_raw_list <- Map(
 )
 
 # "standardize" the raw simulated theta
-
-theta_vector <- do.call(c, theta_raw_list)
+theta_vector <- do.call(c, lapply(theta_raw_list, theta_ij_standardize))
 
 # combine the values into a data.frame
 theta_df <- theta_vector |>
@@ -164,7 +163,7 @@ results_path <- here("results", model_id)
 if (!dir.exists(results_path)) {
   dir.create(results_path, recursive = TRUE)
 }
-qsave(cases_df, here(results_path, "sim_data_1D.qs"))
+qs_save(cases_df, here(results_path, "sim_data_1D.qs2"))
 
 # transform data for stan
 judge_covariates <- cases_df[!duplicated(cases_df$year), ] |>
@@ -186,7 +185,6 @@ stan_data <- list(
   x = x
 )
 
-
 # Append additional data that defines indices that facilitate
 # vectorized sampling in Stan
 stan_data <- c(
@@ -201,18 +199,12 @@ stan_data <- c(
 )
 
 # Append additional data to facilitate identifcation
-stan_data <- c(
+stan_data <- append(
   stan_data,
-  gamma_fixed_idx = 1,
-  gamma_pos_idx = with(
-    judge_covariates,
-    # first Republican cohort should is constrained negative 
-    min(as.numeric(judge_covariates[party == 1 & year != 1, "year"])) + 20
-  ),
-  gamma_neg_idx = with(
-    judge_covariates,
-    # first Democrat cohort is constrained positive
-    min(as.numeric(judge_covariates[party == 0 & year != 1, "year"])) + 20
+  list(
+    gamma_fixed_idx = 1,
+    mu_beta_pos_idx = with(case_params, case_params[mu_beta == max(mu_beta), "type"]),
+    mu_beta_neg_idx = with(case_params, case_params[mu_beta == min(mu_beta), "type"])
   )
 )
 
@@ -246,4 +238,4 @@ fit$draws()
 try(fit$sampler_diagnostics(), silent = TRUE)
 try(fit$init(), silent = TRUE)
 try(fit$profiles(), silent = TRUE)
-qsave(fit, here(results_path, "stan_fit_hom.qs"))
+qs_save(fit, here(results_path, "stan_fit_hom.qs2"))
