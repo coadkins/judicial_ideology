@@ -12,13 +12,19 @@ library(tidyr)
 library(qs)
 
 # reference model date
-model_date <- "08092025466"
+model_date <- "08142025164"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
 fit_array <- load_posterior_draws(
   path = here::here("results", model_date),
   variables = "mu_theta"
+)
+
+# examine trace plots
+bayesplot::mcmc_trace(
+  fit_array,
+  pars = paste0("mu_theta[", 1:20, "]")
 )
 
 # load the simulated data
@@ -32,16 +38,16 @@ group_order <- unique(group_ids[, "g"])
 id_array <- identify_chains(
   post_array = fit_array,
   param_hat = mu_theta[i],
-  sign = -1
+  sign_default = -1
 )
 
 # identify signs for beta
 
-id_array <- identify_chains(
-  post_array = id_array,
-  param = beta[i],
-  sign = -1
-)
+# id_array <- identify_chains(
+#   post_array = id_array,
+#   param = beta[i],
+#   sign = 1 
+# )
 
 # check convergence plots
 mu_g_trace_plots <- bayesplot::mcmc_trace(
@@ -77,7 +83,7 @@ ggsave(here("graphics", model_date, "ppc.png"), post_pred_plot)
 
 # Plot model results versus simulated data
 
-validation_plot <- reshape_posterior(id_array, mu_theta[i], group_order) |>
+validation_plot <- reshape_posterior(fit_array, mu_theta[i], group_order) |>
   ggplot(aes(x = id, y = mu_theta)) + # boxplot for "true" theta draws geom_boxplot(data = sim_data, alpha = 0.5) +
   # boxplot for mu_theta
   geom_boxplot(alpha = 0.5, fill = "lightgrey") +
@@ -85,7 +91,7 @@ validation_plot <- reshape_posterior(id_array, mu_theta[i], group_order) |>
   # boxplot for observed data
   geom_boxplot(
     aes(x = year, y = theta, fill = factor(party), alpha = .5),
-    data = sim_df
+    data = sim_df, coef = 0, outlier.shape = NA
   ) +
   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
   # boxplot for "true" theta draws
