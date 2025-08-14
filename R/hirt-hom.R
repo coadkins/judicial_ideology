@@ -31,18 +31,19 @@ construct_gamma <- function(party, year) {
   gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
   gamma[, 1] <- 0 # Intercept
   gamma[, 2] <- (-1) # gamma for party
-  gamma[, year_cols] <- 0 # gamma for each year (theta1)
+  gamma[, year_cols] <- seq(
+    from = -.2,
+    by = -.1,
+    length.out = length(year_cols)
+  ) # gamma for each year (theta1)
   # gamma for each party*year(theta)
   gamma[, party_year_cols[-dem_years]] <- seq(
     from = -.2,
     by = -.4, # reps.
     length.out = length(party_year_cols[-dem_years])
   )
-  gamma[, party_year_cols[dem_years]] <- seq(
-    from = .2,
-    by = .4, # dems.
-    length.out = length(party_year_cols[dem_years])
-  )
+  gamma[, party_year_cols[dem_years]] <- 
+    rep(0, length(party_year_cols[dem_years]))
   return(gamma)
 }
 
@@ -78,7 +79,7 @@ theta_raw_list <- Map(
 )
 
 # "standardize" the raw simulated theta
-theta_vector <- do.call(c, lapply(theta_raw_list, theta_ij_standardize))
+theta_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
 
 # combine the values into a data.frame
 theta_df <- theta_vector |>
@@ -203,8 +204,14 @@ stan_data <- append(
   stan_data,
   list(
     gamma_fixed_idx = 1,
-    mu_beta_pos_idx = with(case_params, case_params[mu_beta == max(mu_beta), "type"]),
-    mu_beta_neg_idx = with(case_params, case_params[mu_beta == min(mu_beta), "type"])
+    mu_beta_pos_idx = with(
+      case_params,
+      case_params[mu_beta == max(mu_beta), "type"]
+    ),
+    mu_beta_neg_idx = with(
+      case_params,
+      case_params[mu_beta == min(mu_beta), "type"]
+    )
   )
 )
 
