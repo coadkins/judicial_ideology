@@ -10,9 +10,10 @@ library(purrr)
 library(tidybayes)
 library(tidyr)
 library(qs)
+library(qs2)
 
 # reference model date
-model_date <- "08142025164"
+model_date <- "08142025329"
 # source functions.R and utils.R
 walk(here::here("R", c("functions.R", "utils.R")), source)
 
@@ -28,30 +29,30 @@ bayesplot::mcmc_trace(
 )
 
 # load the simulated data
-sim_df <- qs::qread(here("results", model_date, "sim_data_1D.qs"))
+sim_df <- qs_read(here("results", model_date, "sim_data_1D.qs2"))
 # from the simulated data, get
 # 1. a data frame matching judges to groups
 # 2. a vector of group_ids in order they appear in the data
 group_ids <- get_group_ids(sim_df, judge_id, year)
 group_order <- unique(group_ids[, "g"])
 
-id_array <- identify_chains(
-  post_array = fit_array,
-  param_hat = mu_theta[i],
-  sign_default = -1
-)
+# id_array <- identify_chains(
+#   post_array = fit_array,
+#   param_hat = mu_theta[i],
+#   sign_d = -1
+# )
 
 # identify signs for beta
 
 # id_array <- identify_chains(
 #   post_array = id_array,
 #   param = beta[i],
-#   sign = 1 
+#   sign = 1
 # )
 
 # check convergence plots
 mu_g_trace_plots <- bayesplot::mcmc_trace(
-  id_array,
+  fit_array,
   pars = paste0("mu_theta[", 1:20, "]")
 )
 ggsave(here("graphics", model_date, "mu_g_trace_plots.png"), create.dir = TRUE)
@@ -81,17 +82,35 @@ post_pred_plot <- post_pred_plot +
   ggtitle("PPC Check by Cohort")
 ggsave(here("graphics", model_date, "ppc.png"), post_pred_plot)
 
-# Plot model results versus simulated data
+# Coverage Check
+# calculate "true" means and arrange in the same
+# order as the Stan data
+true_group_means <- sim_df |>
+  group_by(year) |>
+  summarize(mu_theta = mean(theta)) |>
+  slice(as.numeric(group_order)) |>
+  pull(mu_theta)
 
+# calculate coverage by group
+calculate_coverage(
+  reshaped_posterior = reshape_posterior(fit_array, mu_theta[i], group_order),
+  true_values = true_group_means,
+  param_hat = mu_theta_hat,
+  prob = .95
+)
+
+# Plot model results versus simulated data
 validation_plot <- reshape_posterior(fit_array, mu_theta[i], group_order) |>
-  ggplot(aes(x = id, y = mu_theta)) + # boxplot for "true" theta draws geom_boxplot(data = sim_data, alpha = 0.5) +
+  ggplot(aes(x = id, y = mu_theta_hat)) +
   # boxplot for mu_theta
   geom_boxplot(alpha = 0.5, fill = "lightgrey") +
   # use transparency so both sets of box plots are visible
   # boxplot for observed data
   geom_boxplot(
     aes(x = year, y = theta, fill = factor(party), alpha = .5),
-    data = sim_df, coef = 0, outlier.shape = NA
+    data = sim_df,
+    coef = 0,
+    outlier.shape = NA
   ) +
   scale_fill_manual(values = c("#1696d2", "#db2b27")) +
   # boxplot for "true" theta draws
