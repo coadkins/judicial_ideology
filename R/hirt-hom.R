@@ -16,10 +16,12 @@ set.seed(02474)
 ## define constants
 n_cohort <- 20
 year <- factor(1:n_cohort)
+n_party <- 2
 party <- rbinom(n_cohort, size = 1, prob = .5)
 n_judge <- n_cohort * 50
-n_cases <- n_judge * 50
+n_cases <- n_judge * 100
 n_case_types <- 50
+n_cov <- 1 + (n_party - 1) + (n_cohort - 1) + (n_cohort - 1) * (n_party - 1)
 
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
@@ -42,7 +44,7 @@ construct_gamma <- function(party, year) {
     by = -.4, # reps.
     length.out = length(party_year_cols[-dem_years])
   )
-  gamma[, party_year_cols[dem_years]] <- 
+  gamma[, party_year_cols[dem_years]] <-
     rep(0, length(party_year_cols[dem_years]))
   return(gamma)
 }
@@ -79,7 +81,7 @@ theta_raw_list <- Map(
 )
 
 # "standardize" the raw simulated theta
-theta_vector <- theta_ij_standardize(do.call(c, theta_raw_list))
+theta_vector <- do.call(c, theta_raw_list)
 
 # combine the values into a data.frame
 theta_df <- theta_vector |>
@@ -203,6 +205,7 @@ stan_data <- c(
 stan_data <- append(
   stan_data,
   list(
+    mu_theta_fixed_idx = 1,
     gamma_fixed_idx = 1,
     mu_beta_pos_idx = with(
       case_params,
@@ -215,6 +218,16 @@ stan_data <- append(
   )
 )
 
+stan_data <- append(
+  stan_data,
+  with(stan_data, list(
+    mu_theta_free_idx = seq(1, n_cohort)[-mu_theta_fixed_idx],
+    gamma_free_idx = seq(1, n_cov)[-gamma_fixed_idx],
+    mu_beta_free_idx = seq(1, n_case_types)[
+      -c(mu_beta_pos_idx, mu_beta_neg_idx)
+    ]
+  ))
+)
 # compile cmdstanr model
 model <- here("stan", "hirt-hom.stan") |>
   cmdstan_model()
@@ -238,7 +251,9 @@ fit <- model$sample(
   chains = 4,
   parallel_chains = 4,
   refresh = 100,
-  output_dir = here(results_path)
+  output_dir = here(results_path),
+  iter_warmup = 2000,
+  iter_sampling = 4000
 )
 
 fit$draws()
