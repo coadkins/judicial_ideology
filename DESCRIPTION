@@ -23,6 +23,7 @@ Imports:
     posterior (>= 1.6.1),
     purrr (>= 1.1.0),
     qs (>= 0.27.3),
+    qs2 (>= 0.1.5),
     rlang (>= 1.1.6),
     stringi (>= 1.8.7),
     tidybayes (>= 3.0.7),
