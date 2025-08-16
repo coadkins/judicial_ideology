@@ -253,7 +253,7 @@ fit <- model$sample(
   refresh = 100,
   output_dir = here(results_path),
   iter_warmup = 2000,
-  iter_sampling = 4000
+  iter_sampling = 2000 
 )
 
 fit$draws()

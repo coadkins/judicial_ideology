@@ -98,10 +98,8 @@ for (b in 1:B) {
   normal(mu_beta[b], sigma_beta);
 }
 // iterate over observations for likelihood
-for(n in 1:N) {
 // sample likelihood 
-  outcome[n] ~ bernoulli_logit(beta[jj[n]] * theta[ii[n]] + alpha[jj[n]]);
- }
+  outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
 }
 generated quantities {
   vector[N] y_hat;
