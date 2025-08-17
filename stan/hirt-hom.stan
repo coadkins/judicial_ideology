@@ -11,13 +11,7 @@ data {
     matrix[G, K] x;                                      // party, cohort and intercept to model group mean
     // These data structures facilitate identification by creating 
     // constraints on mu_theta, gammma and mu_beta
-    int<lower=1, upper=G> mu_theta_fixed_idx;
-    array[G-1] int<lower=1, upper=G> mu_theta_free_idx;
-    int<lower=1, upper=K> gamma_fixed_idx;
-    array[K-1] int<lower=1, upper=K> gamma_free_idx;
-    int<lower=1, upper=B> mu_beta_pos_idx;
-    int<lower=1, upper=B> mu_beta_neg_idx;
-    array[B-2] int<lower=1, upper=B> mu_beta_free_idx;
+    int<lower=1, upper=G> mu_theta_ref_group;
     // I use these data structures to mimic ragged arrays of judges and cases
     // This allows me to vectorize sampling within groups, which is much
     // faster than looping across all judges and individuals
@@ -33,13 +27,11 @@ parameters {
     // parameters related to ability scores
     vector[N_judge] theta_raw;
     real<lower=0> sigma_theta;           // homoskedastic variance for all groups of judges
-    vector[K-1] gamma_free;                // coef for mu predictors 
-    vector[B-2] mu_beta_free;            // group means for discrimination
-    real<lower=0> mu_beta_pos;           // constraints on mu beta coefs
-    real<upper=0> mu_beta_neg;
+    vector[K-1] gamma_free;              // coef for mu predictors 
+    vector[B-1] mu_beta_raw;            // group means for discrimination
     // other parameters
-    vector[N_case_id] alpha;            // intercept for each case
-    vector[N_case_id] beta;             // discrimination score
+    vector[N_case_id] alpha_raw;            // intercept for each case
+    vector[N_case_id] beta_raw;             // discrimination score
     vector[B] mu_alpha;
     real<lower=0> sigma_beta;
     real<lower=0> sigma_alpha; 
@@ -48,56 +40,60 @@ parameters {
 transformed parameters {
 // construct gamma, incorporating the fixed coefficient
 vector[K] gamma;
-gamma[gamma_fixed_idx] = 0;
-gamma[gamma_free_idx] = gamma_free;
+gamma[1] = 0;
+gamma[2:K] = gamma_free;
 
-// construct mu_beta, incorporating constraints
-  vector[B] mu_beta;
-  mu_beta[mu_beta_pos_idx] = mu_beta_pos;
-  mu_beta[mu_beta_neg_idx] = mu_beta_neg;
-  mu_beta[mu_beta_free_idx] = mu_beta_free;
+// non-centered parametrizaion for case parameters 
+vector[B] mu_beta;
+mu_beta[1:(B-1)] = mu_beta_raw;
+mu_beta[B] = -sum(mu_beta_raw);
+vector[N_case_id] alpha;
+vector[N_case_id] beta;
+
+for (b in 1:B) {
+      int start = type_start[b];
+      int end = type_end[b];
+      alpha[cases_by_type[start:end]] = 
+          mu_alpha[b] + sigma_alpha * alpha_raw[cases_by_type[start:end]];
+      beta[cases_by_type[start:end]] = 
+          mu_beta[b] + sigma_beta * beta_raw[cases_by_type[start:end]];
+}
   // construct mu_theta
   vector[G] mu_theta;
   // reference group
-  mu_theta[mu_theta_fixed_idx] = 0;
   // calculate mean ability for each group
-  mu_theta[mu_theta_free_idx] = x[mu_theta_free_idx, ]
-    *gamma;
+  mu_theta = x*gamma;
 // Non-centered parameterization for theta
   vector[N_judge] theta;
 // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
 // but vectorizing within groups is possible 
   for (g in 1:G) {
-    theta[judges_by_group[group_start[g]:group_end[g]]] = 
-      mu_theta[g] + sigma_theta * theta_raw[judges_by_group[group_start[g]:group_end[g]]];
-  }
+    int start = group_start[g];
+    int end = group_end[g];
+    theta[judges_by_group[start:end]] = 
+      mu_theta[g] + sigma_theta * theta_raw[judges_by_group[start:end]];
 }
+
+// center theta around reference group
+  real theta_shift = mean(theta[judges_by_group[group_start[mu_theta_ref_group]:group_end[mu_theta_ref_group]]]);
+  theta = theta - theta_shift;
+  }
+
 
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
 // define variables that do not need to sampled
 // prior for theta and related parameters
   theta_raw ~ std_normal();
-  sigma_theta ~ lognormal(0, 1);
+  sigma_theta ~ normal(0,1) T[0, ];
   gamma_free ~ normal(0,2); 
-   // Truncated normal priors for sign constraints
-  mu_beta_pos ~ normal(1.0, 0.5) T[0,];    // Truncated below at 0
-  mu_beta_neg ~ normal(-1.0, 0.5) T[,-0];  // Truncated above at 0
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
-  mu_beta_free ~ std_normal();
-  sigma_alpha ~ lognormal(-1, .5);
-  sigma_beta ~ lognormal(-1, 1);
-// iterate over case_types for alpha and beta hierarchical prior 
-for (b in 1:B) {
-  // sample alpha
-  alpha[cases_by_type[type_start[b]:type_end[b]]] ~ 
-  normal(mu_alpha[b], sigma_alpha);
-  // sample beta
-  beta[cases_by_type[type_start[b]:type_end[b]]] ~ 
-  normal(mu_beta[b], sigma_beta);
-}
-// iterate over observations for likelihood
+  mu_beta_raw ~ std_normal();
+  sigma_alpha ~ normal(0, 1) T[0, ];
+  sigma_beta ~ normal(0, 1) T[0, ];
+  alpha_raw ~ std_normal();
+  beta_raw ~ std_normal();
 // sample likelihood 
   outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
 }
