@@ -1,0 +1,1 @@
+pak::pak("ropensci/stantargets")

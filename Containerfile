@@ -42,12 +42,13 @@ RUN echo 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux
 # Install renv and package dependencies
 RUN Rscript R/setup.R
 RUN Rscript R/install_cmdstan.R
+RUN Rscript R/install_stantargets.R
 
 # set up cmdstan path
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # Default to bash so I can choose which script to run 
-ENTRYPOINT /bin/bash 
+ENTRYPOINT Rscript -e 'targets::tar_make()'
 
 # Set environmental variables
 ENV RENV_WATCHDOG_ENABLED FALSE

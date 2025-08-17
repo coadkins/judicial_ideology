@@ -49,3 +49,11 @@ load_posterior_draws <- function(path, ...) {
     return(fit[["post_warmup_draws"]])
   }
 }
+
+check_results_path <- function(model_id) {
+results_path <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"))
+if (!dir.exists(results_path)) {
+  dir.create(results_path, recursive = TRUE)
+}
+return(results_path)
+}
