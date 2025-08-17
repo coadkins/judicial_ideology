@@ -3,10 +3,12 @@ FROM almalinux:9
 # COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Update system packages
+RUN dnf -y install epel-release
 RUN dnf -y update
-RUN dnf -y install wget
-RUN dnf -y install cmake
-RUN dnf -y install https://github.com/r-lib/rig/releases/download/latest/r-rig-latest-1.$(arch).rpm
+RUN dnf -y install wget cmake https://github.com/r-lib/rig/releases/download/latest/r-rig-latest-1.$(arch).rpm
+
+# Add targets/igraph dependencies
+RUN dnf -y install glpk-devel libxml2-devel
 
 # Create a WORKDIR named after the project
 WORKDIR /usr
