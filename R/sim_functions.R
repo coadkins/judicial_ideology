@@ -116,7 +116,8 @@ simulate_data <- function(
   # Append additional data to facilitate identifcation
   stan_data <- append(
       stan_data,
-      list(mu_theta_ref_group = 1),
+      list(mu_theta_ref_group = 1,
+      grainsize = 1),
     )
   return(stan_data)
 }
