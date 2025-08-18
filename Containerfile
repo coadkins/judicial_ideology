@@ -22,6 +22,7 @@ COPY _targets.R _targets.R
 RUN mkdir -p results/
 RUN mkdir -p graphics/
 RUN mkdir -p cmdstan/
+RUN mkdir -p _targets/
 
 # Copy renv.lock from local directory
 COPY renv.lock renv.lock
