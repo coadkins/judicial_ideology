@@ -17,8 +17,6 @@ WORKDIR /usr
 COPY R/ /usr/R/
 COPY stan/ /usr/stan/
 COPY _targets.R /usr/_targets.R
-RUN mkdir -p /usr/_targets
-COPY _targets/meta/meta /usr/_targets/meta/meta
 
 # Create other subdirectories
 RUN mkdir -p results/
