@@ -40,6 +40,7 @@ list(
   tar_stan_mcmc(
     name = mcmc,
     stan_files = here("stan", "hirt-hom.stan"),
+    cpp_options = list(stan_threads = TRUE),
     data = simulate_data(
       cohort_g = 20,
       judge_gi = 50,
@@ -48,6 +49,7 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
+    threads_per_chain = 4,
     iter_warmup = 1000,
     iter_sampling = 1000,
     format = "qs",

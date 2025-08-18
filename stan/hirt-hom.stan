@@ -1,3 +1,21 @@
+// use reduce_sum() for within-parallelization for the likelihood
+functions {
+  real partial_sum(array[] int outcome_slice,
+                   int start, int end,
+                   vector beta_full, vector theta_full, vector alpha_full,
+                   array[] int jj_full, array[] int ii_full) {
+    
+    int N_slice = end - start + 1;
+    vector[N_slice] eta;
+    
+    for (n in 1:N_slice) {
+      int idx = start + n - 1;
+      eta[n] = beta_full[jj_full[idx]] * theta_full[ii_full[idx]] + alpha_full[jj_full[idx]];
+    }
+    
+    return bernoulli_logit_lpmf(outcome_slice | eta);
+  }
+}
 data {
     int<lower=1> N;
     int<lower=1> N_case_id;
@@ -24,6 +42,7 @@ data {
     array[N_case_id] int cases_by_type;
     array[B] int type_start;
     array[B] int type_end;
+    int<lower=1> grainsize;
 }
 
 parameters {
@@ -99,7 +118,8 @@ model {
 // iterate over case_types for alpha and beta hierarchical prior 
 // iterate over observations for likelihood
 // sample likelihood 
-  outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
+target += reduce_sum(partial_sum, outcome, grainsize, 
+                     beta, theta, alpha, jj, ii);
 }
 generated quantities {
   vector[N] y_hat;

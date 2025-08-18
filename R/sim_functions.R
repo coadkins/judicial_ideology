@@ -123,7 +123,8 @@ simulate_data <- function(
       list(mu_beta_pos_idx = mu_beta_pos_idx,
         mu_beta_neg_idx = mu_beta_neg_idx,
         mu_beta_free_idx = mu_beta_free_idx,
-        mu_theta_ref_group = mu_theta_ref_group
+        mu_theta_ref_group = mu_theta_ref_group,
+        grainsize = 1
     )
   )
   return(stan_data)
