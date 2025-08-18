@@ -10,9 +10,22 @@ library(stringi)
 library(tarchetypes)
 library(targets)
 library(qs2)
+library(paws.storage)
 
 # Use memory more sparingly
-tar_option_set(memory = "transient", garbage_collection = TRUE)
+tar_option_set(
+  memory = "transient",
+  garbage_collection = TRUE,
+  repository_meta = "aws",
+  resources = tar_resources(
+    tar_resources_aws(
+      bucket = Sys.getenv("S3_BUCKET"),
+      prefix = "SBV",
+      endpoint = Sys.getenv("S3_ENDPOINT"),
+      region = Sys.getenv("S3_REGION")
+    )
+  )
+)
 
 # Set target options:
 tar_option_set(

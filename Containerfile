@@ -8,7 +8,7 @@ RUN dnf -y update
 RUN dnf -y install wget cmake https://github.com/r-lib/rig/releases/download/latest/r-rig-latest-1.$(arch).rpm
 
 # Add targets/igraph dependencies
-RUN dnf -y install glpk-devel libxml2-devel
+RUN dnf -y install glpk-devel libxml2-devel openssl-devel
 
 # Create a WORKDIR named after the project
 WORKDIR /usr
@@ -48,6 +48,18 @@ RUN Rscript R/install_stantargets.R
 
 # set up cmdstan path
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
+
+# set up S3 access credentials
+RUN --mount=type=secret,id=s3_key \
+    --mount=type=secret,id=s3_secret \
+    --mount=type=secret,id=s3_bucket \
+    --mount=type=secret,id=s3_region \
+    --mount=type=secret,id=s3_endpoint \
+    echo "AWS_ACCESS_KEY_ID=$(cat /run/secrets/aws_key)" >> /usr/Renviron.site && \
+    echo "AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
+    echo "S3_BUCKET=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
+    echo "S3_REGION=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
+    echo "S3_ENDPOINT=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
 
 # Default to bash so I can choose which script to run 
 ENTRYPOINT Rscript -e 'targets::tar_make()'

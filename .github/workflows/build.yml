@@ -63,6 +63,12 @@ jobs:
             type=ref,event=pr
           sep-tags: " "
           sep-annotations: " "
+          secrets: |
+          "s3_key=${{ secrets.S3_ACCESS_KEY_ID }}"
+          "s3_secret=${{ secrets.S3_SECRET_ACCESS_KEY }}"
+          "s3_endpoint=${{ secrets.S3_ENDPOINT }}" 
+          "s3_bucket=${{ secrets.S3_BUCKET }}"
+          "s3_region=${{ secrets.S3_REGION }}"
 
       - name: Build Image
         id: build_image
