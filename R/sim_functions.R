@@ -40,7 +40,7 @@ simulate_data <- function(
 
   # reference group center the raw simulated theta
   theta_reference <- theta_raw_list[[1]]
-  theta_vector <- do.call(c, theta_raw_list) - mean(theta_reference)
+  theta_vector <- (do.call(c, theta_raw_list) - mean(theta_reference))/sd(theta_reference)
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
