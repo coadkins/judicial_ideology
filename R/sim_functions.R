@@ -18,7 +18,7 @@ simulate_data <- function(
   year <- factor(1:n_cohort)
   n_party <- 2
   party <- rbinom(n_cohort, size = 1, prob = .5)
-  n_judge <- judge_gi
+  n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
   n_cov <- 1 + (n_party - 1) + (n_cohort - 1) + (n_cohort - 1) * (n_party - 1)

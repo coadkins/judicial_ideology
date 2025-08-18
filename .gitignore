@@ -8,7 +8,6 @@ figures/
 .*.Rproj
 .Rproj.user
 articles/
-_targets/
 renv/
 data/
 results/
