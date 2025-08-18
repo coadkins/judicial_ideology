@@ -16,9 +16,8 @@ WORKDIR /usr
 # Copy project subdirectories
 COPY R/ /usr/R/
 COPY stan/ /usr/stan/
-COPY _targets/ _targets/
-COPY _targets.R _targets.R
-run chmod -R 777 _targets/
+COPY _targets.R /usr/_targets.R
+COPY --chown=root _targets/ /usr/_targets/
 
 # Create other subdirectories
 RUN mkdir -p results/
