@@ -90,8 +90,7 @@ for (b in 1:B) {
 
 // center theta around reference group
   real theta_shift = mean(theta[judges_by_group[group_start[mu_theta_ref_group]:group_end[mu_theta_ref_group]]]);
-  real theta_scale = sd(theta[judges_by_group[group_start[mu_theta_ref_group]:group_end[mu_theta_ref_group]]]);
-  theta = (theta - theta_shift)/theta_scale;
+  theta = theta - theta_shift;
   }
 
 model {
