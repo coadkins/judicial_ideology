@@ -56,9 +56,9 @@ RUN --mount=type=secret,id=s3_key \
     --mount=type=secret,id=s3_region \
     --mount=type=secret,id=s3_endpoint \
     echo "AWS_ACCESS_KEY_ID=$(cat /run/secrets/aws_key)" >> /usr/Renviron.site && \
-    echo "AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
-    echo "S3_BUCKET=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
-    echo "S3_REGION=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
+    echo "AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
+    echo "S3_BUCKET=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
+    echo "S3_REGION=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
     echo "S3_ENDPOINT=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
 
 # Default to bash so I can choose which script to run 
