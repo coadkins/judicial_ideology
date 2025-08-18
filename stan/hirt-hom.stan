@@ -30,9 +30,6 @@ data {
     // These data structures facilitate identification by creating 
     // constraints on mu_theta, gammma and mu_beta
     int<lower=1, upper=G> mu_theta_ref_group;
-    int<lower=1, upper=B> mu_beta_pos_idx;
-    int<lower=1, upper=B> mu_beta_neg_idx;
-    array[B-2] int<lower=1, upper=B> mu_beta_free_idx;
     // I use these data structures to mimic ragged arrays of judges and cases
     // This allows me to vectorize sampling within groups, which is much
     // faster than looping across all judges and individuals
@@ -49,9 +46,7 @@ parameters {
     // parameters related to ability scores
     vector[N_judge] theta_raw;
     real<lower=0> sigma_theta;          // homoskedastic variance for all groups of judges
-    vector[B-2] mu_beta_free;            // group means for discrimination
-    real mu_beta_pos;
-    real mu_beta_neg;
+    vector[B-1] mu_beta_raw;            // group means for discrimination
     vector[K] gamma;                    // coef for mu predictors 
     // other parameters
     vector[N_case_id] alpha_raw;        // intercept for each case
@@ -62,23 +57,20 @@ parameters {
 }
 
 transformed parameters {
-// construct mu_beta, incorporating constraints
-  vector[B] mu_beta;
-  mu_beta[mu_beta_pos_idx] = mu_beta_pos;
-  mu_beta[mu_beta_neg_idx] = mu_beta_neg;
-  mu_beta[mu_beta_free_idx] = mu_beta_free;
-  vector[N_case_id] alpha;
-  vector[N_case_id] beta;
-// non-centered parameterization for alpha/beta
+// non-centered parametrizaion for case parameters 
+vector[B] mu_beta;
+mu_beta[1:(B-1)] = mu_beta_raw;
+mu_beta[B] = -sum(mu_beta_raw);
+vector[N_case_id] alpha;
+vector[N_case_id] beta;
+
 for (b in 1:B) {
-  int start = type_start[b];
-  int end = type_end[b];
-  // sample alpha
-  alpha[cases_by_type[start:end]] = 
-  mu_alpha[b] + sigma_alpha * alpha_raw[cases_by_type[start:end]];
-  // sample beta
-  beta[cases_by_type[start:end]] = 
-  mu_beta[b] + sigma_beta * beta_raw[cases_by_type[start:end]];
+      int start = type_start[b];
+      int end = type_end[b];
+      alpha[cases_by_type[start:end]] = 
+          mu_alpha[b] + sigma_alpha * alpha_raw[cases_by_type[start:end]];
+      beta[cases_by_type[start:end]] = 
+          mu_beta[b] + sigma_beta * beta_raw[cases_by_type[start:end]];
 }
   // construct mu_theta
   vector[G] mu_theta;
@@ -107,16 +99,15 @@ model {
 // define variables that do not need to sampled
 // prior for theta and related parameters
   theta_raw ~ std_normal();
-  sigma_theta ~ lognormal(0, 1);
+  sigma_theta ~ normal(0,1) T[0, ];
   gamma ~ normal(0,1); 
-   // Truncated normal priors for sign constraints
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
-  mu_beta_free ~ std_normal();
-  sigma_alpha ~ lognormal(-1, 1);
-  sigma_beta ~ lognormal(-1, 1);
-// iterate over case_types for alpha and beta hierarchical prior 
-// iterate over observations for likelihood
+  mu_beta_raw ~ std_normal();
+  sigma_alpha ~ normal(0, 1) T[0, ];
+  sigma_beta ~ normal(0, 1) T[0, ];
+  alpha_raw ~ std_normal();
+  beta_raw ~ std_normal();
 // sample likelihood 
 target += reduce_sum(partial_sum, outcome, grainsize, 
                      beta, theta, alpha, jj, ii);
