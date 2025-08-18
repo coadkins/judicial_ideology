@@ -2,17 +2,25 @@
 functions {
   real partial_sum(array[] int outcome_slice,
                    int start, int end,
-                   vector beta_full, vector theta_full, vector alpha_full,
-                   array[] int jj_full, array[] int ii_full) {
-    
+                   // Parameters
+                   vector beta,
+                   vector theta,
+                   vector alpha,
+                   // Data
+                   array[] int jj,
+                   array[] int ii) {
+
+    // Calculate the size of the slice
     int N_slice = end - start + 1;
-    vector[N_slice] eta;
-    
-    for (n in 1:N_slice) {
-      int idx = start + n - 1;
-      eta[n] = beta_full[jj_full[idx]] * theta_full[ii_full[idx]] + alpha_full[jj_full[idx]];
-    }
-    
+
+    // Create slices of the index arrays
+    array[N_slice] int jj_slice = jj[start:end];
+    array[N_slice] int ii_slice = ii[start:end];
+
+    // Build the linear predictor in a single vectorized operation
+    vector[N_slice] eta = beta[jj_slice] .* theta[ii_slice] + alpha[jj_slice];
+
+    // Return the log-likelihood for the slice
     return bernoulli_logit_lpmf(outcome_slice | eta);
   }
 }
