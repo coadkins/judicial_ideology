@@ -16,13 +16,13 @@ WORKDIR /usr
 # Copy project subdirectories
 COPY R/ /usr/R/
 COPY stan/ /usr/stan/
+COPY _targets/ _targets/
 COPY _targets.R _targets.R
 
 # Create other subdirectories
 RUN mkdir -p results/
 RUN mkdir -p graphics/
 RUN mkdir -p cmdstan/
-RUN mkdir -p _targets/
 
 # Copy renv.lock from local directory
 COPY renv.lock renv.lock
