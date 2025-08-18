@@ -117,7 +117,7 @@ simulate_data <- function(
   stan_data <- append(
       stan_data,
       list(mu_theta_ref_group = 1,
-      grainsize = 3000),
+      grainsize = 2000),
     )
   return(stan_data)
 }
