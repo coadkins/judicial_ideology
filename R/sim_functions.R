@@ -6,8 +6,8 @@
 
 simulate_data <- function(
   cohort_g = 20,
-  judge_gi = 20,
-  case_ij = 20,
+  judge_gi = 50,
+  case_ij = 50,
   types_b = 50
 ) {
   # simulate data
@@ -117,7 +117,7 @@ simulate_data <- function(
   stan_data <- append(
       stan_data,
       list(mu_theta_ref_group = 1,
-      grainsize = 1),
+      grainsize = 3000),
     )
   return(stan_data)
 }
