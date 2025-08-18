@@ -68,19 +68,15 @@ jobs:
         id: build_image
         uses: docker/build-push-action@v5
         with:
-          containerfiles: |
+          file: |
             ./Containerfile
-          # Postfix image name with -custom to make it a little more descriptive
-          # Syntax: https://docs.github.com/en/actions/learn-github-actions/expressions#format
-          image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
-          oci: false
           secrets: |
-            "s3_key=${{ secrets.S3_ACCESS_KEY_ID }}"
-            "s3_secret=${{ secrets.S3_SECRET_ACCESS_KEY }}"
-            "s3_endpoint=${{ secrets.S3_ENDPOINT }}" 
-            "s3_bucket=${{ secrets.S3_BUCKET }}"
-            "s3_region=${{ secrets.S3_REGION }}"
+            s3_key=${{ secrets.S3_ACCESS_KEY_ID }}
+            s3_secret=${{ secrets.S3_SECRET_ACCESS_KEY }}
+            s3_endpoint=${{ secrets.S3_ENDPOINT }} 
+            s3_bucket=${{ secrets.S3_BUCKET }}
+            s3_region=${{ secrets.S3_REGION }}
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
