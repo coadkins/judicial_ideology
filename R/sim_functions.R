@@ -113,10 +113,19 @@ simulate_data <- function(
   )
 
   # Append additional data to facilitate identifcation
+  mu_beta_pos_idx <- with(case_params, case_params[mu_beta == max(mu_beta), "type"])
+  mu_beta_neg_idx <- with(case_params, case_params[mu_beta == min(mu_beta), "type"])
+  mu_beta_free_idx <- seq(1:n_case_types)[-c(mu_beta_pos_idx, mu_beta_neg_idx)]
+  mu_theta_ref_group <- 1
+
   stan_data <- append(
       stan_data,
-      list(mu_theta_ref_group = 1),
+      list(mu_beta_pos_idx = mu_beta_pos_idx,
+        mu_beta_neg_idx = mu_beta_neg_idx,
+        mu_beta_free_idx = mu_beta_free_idx,
+        mu_theta_ref_group = mu_theta_ref_group
     )
+  )
   return(stan_data)
 }
 
@@ -265,4 +274,4 @@ fix_judge_idx <- function(df, x, y, target) {
 #' @returns a list, the first element is a vector of individuals ordered by group,
 #' the second element is a vector of group start indices,
 #' and the third element is a vector of group end indices
-#'
+  #'

@@ -35,19 +35,6 @@ tar_source(here("R", "functions.R"))
 tar_source(here("R", "sim_functions.R"))
 tar_source(here("R", "utils.R"))
 
-# set up the output dir for the .csv files
-model_id <- stringi::stri_c(format(Sys.Date(), "%m%d%Y"), sample(100:999, 1))
-results_path <- here("results", model_id)
-if (!dir.exists(results_path)) {
-  dir.create(results_path, recursive = TRUE)
-}
-cmdstanr::save_output_files(
-  dir = results_path,
-  basename = model_id,
-  timestamp = FALSE,
-  random = FALSE 
-)
-
 # Replace the target list below with your own:
 list(
   tar_stan_mcmc(

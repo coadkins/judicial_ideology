@@ -11,10 +11,7 @@ data {
     matrix[G, K] x;                                      // party, cohort and intercept to model group mean
     // These data structures facilitate identification by creating 
     // constraints on mu_theta, gammma and mu_beta
-    int<lower=1, upper=G> mu_theta_fixed_idx;
-    array[G-1] int<lower=1, upper=G> mu_theta_free_idx;
-    int<lower=1, upper=K> gamma_fixed_idx;
-    array[K-1] int<lower=1, upper=K> gamma_free_idx;
+    int<lower=1, upper=G> mu_theta_ref_group;
     int<lower=1, upper=B> mu_beta_pos_idx;
     int<lower=1, upper=B> mu_beta_neg_idx;
     array[B-2] int<lower=1, upper=B> mu_beta_free_idx;
@@ -33,7 +30,9 @@ parameters {
     // parameters related to ability scores
     vector[N_judge] theta_raw;
     real<lower=0> sigma_theta;          // homoskedastic variance for all groups of judges
-    vector[B-1] mu_beta_raw;            // group means for discrimination
+    vector[B-2] mu_beta_free;            // group means for discrimination
+    real mu_beta_pos;
+    real mu_beta_neg;
     vector[K] gamma;                    // coef for mu predictors 
     // other parameters
     vector[N_case_id] alpha_raw;        // intercept for each case
@@ -44,23 +43,29 @@ parameters {
 }
 
 transformed parameters {
-// construct gamma, incorporating the fixed coefficient
-vector[K] gamma;
-gamma[gamma_fixed_idx] = 0;
-gamma[gamma_free_idx] = gamma_free;
-
 // construct mu_beta, incorporating constraints
   vector[B] mu_beta;
   mu_beta[mu_beta_pos_idx] = mu_beta_pos;
   mu_beta[mu_beta_neg_idx] = mu_beta_neg;
   mu_beta[mu_beta_free_idx] = mu_beta_free;
+  vector[N_case_id] alpha;
+  vector[N_case_id] beta;
+// non-centered parameterization for alpha/beta
+for (b in 1:B) {
+  int start = type_start[b];
+  int end = type_end[b];
+  // sample alpha
+  alpha[cases_by_type[start:end]] = 
+  mu_alpha[b] + sigma_alpha * alpha_raw[cases_by_type[start:end]];
+  // sample beta
+  beta[cases_by_type[start:end]] = 
+  mu_beta[b] + sigma_beta * beta_raw[cases_by_type[start:end]];
+}
   // construct mu_theta
   vector[G] mu_theta;
   // reference group
-  mu_theta[mu_theta_fixed_idx] = 0;
   // calculate mean ability for each group
-  mu_theta[mu_theta_free_idx] = x[mu_theta_free_idx, ]
-    *gamma;
+  mu_theta = x*gamma;
 // Non-centered parameterization for theta
   vector[N_judge] theta;
 // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
@@ -84,24 +89,14 @@ model {
 // prior for theta and related parameters
   theta_raw ~ std_normal();
   sigma_theta ~ lognormal(0, 1);
-  gamma_free ~ normal(0,2); 
+  gamma ~ normal(0,1); 
    // Truncated normal priors for sign constraints
-  mu_beta_pos ~ normal(1.0, 0.5) T[0,];    // Truncated below at 0
-  mu_beta_neg ~ normal(-1.0, 0.5) T[,-0];  // Truncated above at 0
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta_free ~ std_normal();
-  sigma_alpha ~ lognormal(-1, .5);
+  sigma_alpha ~ lognormal(-1, 1);
   sigma_beta ~ lognormal(-1, 1);
 // iterate over case_types for alpha and beta hierarchical prior 
-for (b in 1:B) {
-  // sample alpha
-  alpha[cases_by_type[type_start[b]:type_end[b]]] ~ 
-  normal(mu_alpha[b], sigma_alpha);
-  // sample beta
-  beta[cases_by_type[type_start[b]:type_end[b]]] ~ 
-  normal(mu_beta[b], sigma_beta);
-}
 // iterate over observations for likelihood
 // sample likelihood 
   outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
