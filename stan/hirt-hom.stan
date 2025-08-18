@@ -26,23 +26,18 @@ data {
 parameters {
     // parameters related to ability scores
     vector[N_judge] theta_raw;
-    real<lower=0> sigma_theta;           // homoskedastic variance for all groups of judges
-    vector[K-1] gamma_free;              // coef for mu predictors 
+    real<lower=0> sigma_theta;          // homoskedastic variance for all groups of judges
     vector[B-1] mu_beta_raw;            // group means for discrimination
+    vector[K] gamma;                    // coef for mu predictors 
     // other parameters
-    vector[N_case_id] alpha_raw;            // intercept for each case
-    vector[N_case_id] beta_raw;             // discrimination score
+    vector[N_case_id] alpha_raw;        // intercept for each case
+    vector[N_case_id] beta_raw;         // discrimination score
     vector[B] mu_alpha;
     real<lower=0> sigma_beta;
     real<lower=0> sigma_alpha; 
 }
 
 transformed parameters {
-// construct gamma, incorporating the fixed coefficient
-vector[K] gamma;
-gamma[1] = 0;
-gamma[2:K] = gamma_free;
-
 // non-centered parametrizaion for case parameters 
 vector[B] mu_beta;
 mu_beta[1:(B-1)] = mu_beta_raw;
@@ -76,9 +71,9 @@ for (b in 1:B) {
 
 // center theta around reference group
   real theta_shift = mean(theta[judges_by_group[group_start[mu_theta_ref_group]:group_end[mu_theta_ref_group]]]);
-  theta = theta - theta_shift;
+  real theta_scale = sd(theta[judges_by_group[group_start[mu_theta_ref_group]:group_end[mu_theta_ref_group]]]);
+  theta = (theta - theta_shift)/theta_scale;
   }
-
 
 model {
 // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
@@ -86,7 +81,7 @@ model {
 // prior for theta and related parameters
   theta_raw ~ std_normal();
   sigma_theta ~ normal(0,1) T[0, ];
-  gamma_free ~ normal(0,2); 
+  gamma ~ normal(0,1); 
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta_raw ~ std_normal();
