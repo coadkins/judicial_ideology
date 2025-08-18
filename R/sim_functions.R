@@ -96,7 +96,8 @@ simulate_data <- function(
     ii = with(cases_df, judge_id[order(case_id)]),
     jj = with(cases_df, case_id[order(case_id)]),
     x = x,
-    .join_data = list(mu_theta = dplyr::pull(judge_covariates, mu_theta))
+    .join_data = list(mu_theta = dplyr::pull(judge_covariates, mu_theta),
+                      group_order = cases_df[, "year"])
   )
 
   # Append additional data that defines indices that facilitate
