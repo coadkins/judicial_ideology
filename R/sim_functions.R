@@ -96,8 +96,13 @@ simulate_data <- function(
     ii = with(cases_df, judge_id[order(case_id)]),
     jj = with(cases_df, case_id[order(case_id)]),
     x = x,
+    # .join_data is returned in "mcmc_data" and is useful for post-processing 
     .join_data = list(mu_theta = dplyr::pull(judge_covariates, mu_theta),
-                      group_order = cases_df[, "year"])
+                      sigma_theta = sigma_theta,
+                      theta = theta_vector,
+                      party = party,
+                      group_order = cases_df[, "year"]
+                      )
   )
 
   # Append additional data that defines indices that facilitate
