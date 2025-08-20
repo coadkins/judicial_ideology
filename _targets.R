@@ -47,7 +47,6 @@ tar_option_set(
 tar_source(here("R", "functions.R"))
 tar_source(here("R", "sim_functions.R"))
 tar_source(here("R", "utils.R"))
-tar_meta_download()
 
 # Replace the target list below with your own:
 list(
@@ -72,4 +71,3 @@ list(
     stderr = R.utils::nullfile()
   )
 )
-tar_meta_upload()
