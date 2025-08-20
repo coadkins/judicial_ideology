@@ -63,7 +63,6 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
-#    threads_per_chain = 2,
     iter_warmup = 1000,
     iter_sampling = 1000,
     format = "qs",
