@@ -62,7 +62,8 @@ RUN --mount=type=secret,id=s3_key \
     echo "S3_ENDPOINT=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
 
 # Default to bash so I can choose which script to run 
-ENTRYPOINT Rscript -e 'targets::tar_make()'
+ENTRYPOINT Rscript 'R/sync_targets_metadata.R' && \
+           Rscript -e 'targets::tar_make()'
 
 # Set environmental variables
 ENV RENV_WATCHDOG_ENABLED FALSE
