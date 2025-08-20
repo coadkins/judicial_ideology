@@ -3,19 +3,19 @@ name: Build container image
 on:
   pull_request:
     branches:
-      - main
+      - main 
   push:
     branches:
-      - main
+      - validation
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
 
 env:
-  IMAGE_DESC: "Judicial Ideology Container Runner"
+  IMAGE_DESC: "Judicial Ideology Runner - Model Validation Variant"
   IMAGE_NAME: "${{ github.event.repository.name }}"  # output image name, usually same as repo name
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
-  DEFAULT_TAG: "latest"
+  DEFAULT_TAG: "${{ github.ref_name }}-latest"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.brand_name}}-${{ inputs.stream_name }}
