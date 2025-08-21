@@ -4,6 +4,7 @@
 #   https://books.ropensci.org/targets/walkthrough.html#inspect-the-pipeline
 
 # Load packages required to define the pipeline:
+library(crew)
 library(here)
 library(stantargets)
 library(stringi)
