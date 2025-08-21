@@ -71,5 +71,13 @@ list(
     format_df = "qs",
     stdout = R.utils::nullfile(),
     stderr = R.utils::nullfile()
+  ),
+  # trace plots
+  tar_target(
+    mcmc_trace_plots,
+    bayesplot::mcmc_trace(
+      as_draws_array(mcmc_mcmc_hirt.hom),
+      pars = paste0("mu_theta[", 1:20, "]")
+    )
   )
 )
