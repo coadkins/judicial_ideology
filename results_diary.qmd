@@ -38,13 +38,13 @@ The date and hash of the current model run is:
 ```{r target-hash}
 stri_c(
   c(
-as.character(
-  as.Date(
-  tar_meta(mcmc_mcmc_hirt.hom, "time")[[2]]
-  )
+    as.character(
+      as.Date(
+        tar_meta(mcmc_mcmc_hirt.hom, "time")[[2]]
+      )
+    ),
+    tar_meta(mcmc_mcmc_hirt.hom, "data")[[2]]
   ),
-tar_meta(mcmc_mcmc_hirt.hom, "data")[[2]]
-), 
-collapse = "-"
+  collapse = "-"
 )
 ```
