@@ -1,0 +1,42 @@
+---
+title: "Model Diary"
+format: html
+---
+
+```{r}
+library(stringi)
+library(targets)
+library(qs2)
+library(paws.storage)
+```
+
+# Graphical Results
+
+```{r update-meta}
+# sync results
+```
+
+```{r trace-plots}
+plot <- tar_read(mcmc_trace_plots)
+print(plot)
+```
+
+```{r validation-plots}
+# tar_read(validation_plot)
+```
+
+# Comments
+The date and hash of the current model run is:
+```{r target-hash}
+stri_c(
+  c(
+as.character(
+  as.Date(
+  tar_meta(mcmc_mcmc_hirt.hom, "time")[[2]]
+  )
+  ),
+tar_meta(mcmc_mcmc_hirt.hom, "data")[[2]]
+), 
+collapse = "-"
+)
+```
