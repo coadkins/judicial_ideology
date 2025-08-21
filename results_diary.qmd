@@ -12,16 +12,24 @@ library(paws.storage)
 
 # Graphical Results
 
-```{r update-meta}
-# sync results
+```{r}
+#| label: update targets metadata
 ```
 
-```{r trace-plots}
+```{r}
+#| label: trace-plots
 plot <- tar_read(mcmc_trace_plots)
 print(plot)
 ```
 
-```{r validation-plots}
+```{r}
+#| label: ppc-plot
+plot <- tar_read(mcmc_ppc_plot)
+print(plot)
+```
+
+```{r}
+#| label: validation-plot
 # tar_read(validation_plot)
 ```
 
