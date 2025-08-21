@@ -96,13 +96,21 @@ list(
   tar_target(
     mcmc_ppc_plot,
     {
-      .join_data <- mcmc_data[[".join_data"]]
       ppc_bars_grouped(
         y = mcmc_data[["outcome"]],
         yrep = mcmc_prediction_draws,
-        group = .join_data[["group_order"]]
+        group = mcmc_data[[c(".join_data", "group_order")]]
       ) +
         ggtitle("PPC Check by Cohort")
     },
+  ),
+  # targets related to validation plot
+  tar_target(
+    reshaped_posterior,
+    reshape_posterior(
+      post_array = mcmc_mcmc_hirt.hom |> as_draws_array(),
+      param_hat = mu_theta[i],
+      order = mcmc_data[[c(".join_data", "group_order")]]
+    )
   )
 )
