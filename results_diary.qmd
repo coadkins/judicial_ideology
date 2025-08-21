@@ -4,82 +4,17 @@ format: html
 ---
 
 ```{r}
-library(here)
-library(stantargets)
 library(stringi)
-library(tarchetypes)
 library(targets)
 library(qs2)
 library(paws.storage)
 ```
 
-```{targets define-globals, tar_globals = TRUE, tar_interactive = FALSE}
-
-tar_option_set(
-  memory = "transient",
-  garbage_collection = TRUE,
-  repository_meta = "aws",
-  resources = tar_resources(
-    tar_resources_aws(
-      bucket = Sys.getenv("S3_BUCKET"),
-      prefix = "sum-to-zero",
-      endpoint = Sys.getenv("S3_ENDPOINT"),
-      region = Sys.getenv("S3_REGION")
-    )
-  ), 
-  packages = c(
-    "bayesplot",
-    "cmdstanr",
-    "dplyr",
-    "here",
-    "posterior",
-    "purrr",
-    "rlang",
-    "stantargets",
-    "stringi",
-    "tidybayes",
-    "tidyr",
-    "qs2"
-  )
-)
-# Source custom functions:
-tar_source(here::here("R", "functions.R"))
-tar_source(here::here("R", "sim_functions.R"))
-tar_source(here::here("R", "utils.R"))
-```
-
-```{targets mcmc, tar_interactive = FALSE}
-  stantargets::tar_stan_mcmc(
-    name = mcmc,
-    stan_files = here::here("stan", "hirt-hom.stan"),
-    data = simulate_data(
-      cohort_g = 20,
-      judge_gi = 20,
-      case_ij = 20,
-      types_b =20 
-    ),
-    chains = 4,
-    parallel_chains = 4,
-    iter_warmup = 20,
-    iter_sampling = 20,
-    format = "qs",
-    format_df = "qs",
-    stdout = R.utils::nullfile(),
-    stderr = R.utils::nullfile()
-  )
-```
-
-```{targets mcmc_trace_plots, tar_interactive = FALSE}
-  tar_target(
-    mcmc_trace_plots,
-    bayesplot::mcmc_trace(
-      as_draws_array(mcmc_mcmc_hirt.hom),
-      pars = paste0("mu_theta[", 1:20, "]")
-    )
-  )
-```
-
 # Graphical Results
+
+```{r update-meta}
+# sync results
+```
 
 ```{r trace-plots}
 plot <- tar_read(mcmc_trace_plots)
@@ -103,6 +38,5 @@ as.character(
 tar_meta(mcmc_mcmc_hirt.hom, "data")[[2]]
 ), 
 collapse = "-"
-
 )
 ```
