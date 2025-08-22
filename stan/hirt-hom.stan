@@ -1,29 +1,3 @@
-// use reduce_sum() for within-parallelization for the likelihood
-//functions {
-//  real partial_sum(array[] int outcome_slice,
-//                   int start, int end,
-//                   // Parameters
-//                   vector beta,
-//                   vector theta,
-//                   vector alpha,
-//                   // Data
-//                   array[] int jj,
-//                   array[] int ii) {
-//
-//    // Calculate the size of the slice
-//    int N_slice = end - start + 1;
-//
-//    // Create slices of the index arrays
-//    array[N_slice] int jj_slice = jj[start:end];
-//    array[N_slice] int ii_slice = ii[start:end];
-//
-//    // Build the linear predictor in a single vectorized operation
-//    vector[N_slice] eta = beta[jj_slice] .* theta[ii_slice] + alpha[jj_slice];
-//
-//    // Return the log-likelihood for the slice
-//    return bernoulli_logit_lpmf(outcome_slice | eta);
-//  }
-//}
 data {
     int<lower=1> N;
     int<lower=1> N_case_id;
@@ -115,10 +89,8 @@ model {
   sigma_beta ~ lognormal(0, .25);
   alpha_raw ~ std_normal();
   beta_raw ~ std_normal();
-// sample likelihood 
-// target += reduce_sum(partial_sum, outcome, grainsize, 
-//                     beta, theta, alpha, jj, ii);
- outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
+  // sample likelihood 
+  outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
 }
 generated quantities {
   vector[N] y_hat;
