@@ -20,7 +20,7 @@ tar_option_set(
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
-  controller = crew_controller_local(workers = 2),
+  controller = crew_controller_local(workers = 4),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
@@ -49,8 +49,8 @@ tar_option_set(
 )
 
 # Run the R scripts in the R/ folder with your custom functions:
-tar_source(here("R", "functions.R"))
-tar_source(here("R", "sim_functions.R"))
+tar_source(here("R", "simulation.R"))
+tar_source(here("R", "post_processing.R"))
 tar_source(here("R", "utils.R"))
 
 # Replace the target list below with your own:
@@ -99,10 +99,10 @@ list(
       ppc_bars_grouped(
         y = mcmc_data[["outcome"]],
         yrep = mcmc_prediction_draws,
-        group = mcmc_data[[c(".join_data", "group_order")]]
+        group = mcmc_data[[c(".join_data", "g_ij")]]
       ) +
         ggtitle("PPC Check by Cohort")
-    },
+    }
   ),
   # targets related to validation plot
   tar_target(
@@ -110,7 +110,7 @@ list(
     reshape_posterior(
       post_array = mcmc_mcmc_hirt.hom |> as_draws_array(),
       param_hat = mu_theta[i],
-      order = mcmc_data[[c(".join_data", "group_order")]]
+      order = mcmc_data[[c(".join_data", "g")]]
     )
   ),
   tar_target(
