@@ -81,7 +81,7 @@ model {
 // prior for theta and related parameters
   theta_raw ~ std_normal();
   sigma_theta ~ lognormal(0, .25);
-  gamma ~ normal(0, 1);
+  gamma ~ normal(-1, 1);
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta_raw ~ std_normal();
