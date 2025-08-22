@@ -154,9 +154,10 @@ construct_gamma <- function(party, year) {
   return(gamma)
 }
 
-draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
+draw_theta_ij_raw <- function(ng mu
+  x <- model.matrix(~ n, party, year, gamma, sigma_theta) {
   # variables predicting mu
-  x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
+  x <- model.matrix(~ 0 + party + year + party * year) # 1xk row vector
   mu <- x %*% t(gamma)
   # draw theta_ij
   out <- rnorm(n, mu, sigma_theta)
