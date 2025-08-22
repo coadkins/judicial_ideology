@@ -23,7 +23,7 @@ simulate_data <- function(
 
   gamma_sim <- construct_gamma(party, year)
 
-  sigma_theta <- rlnorm(1, 0, .5)
+  sigma_theta <- rlnorm(1, 0, .25)
   # vectorize draw_theta_ij() over party and year
   theta_raw_list <- Map(
     draw_theta_ij_raw,
@@ -63,13 +63,18 @@ simulate_data <- function(
     mu_alpha = rnorm(n_case_types, 0, 1)
   )
 
+  sigma_alpha <- rlnorm(1, 0, .25)
+  sigma_beta <- rlnorm(1, 0, .25)
+
   cases_df <- Map(
     draw_panel,
     case_id = 1:n_cases,
     case_type = sample(1:n_case_types, n_cases, replace = TRUE),
     MoreArgs = list(
       theta_df = theta_df,
-      mu_case_df = case_params
+      mu_case_df = case_params,
+      sigma_alpha = sigma_alpha,
+      sigma_beta = sigma_beta
     )
   ) |>
     purrr::list_rbind()
@@ -169,17 +174,25 @@ theta_ij_standardize <- function(theta_vector) {
   return(theta_standardized)
 }
 
+
 ## simulate judges and cases
-draw_case <- function(thetas, mu_beta, mu_alpha) {
-  alpha <- rnorm(1, mu_alpha, .8)
-  beta <- rnorm(1, mu_beta, .8)
+draw_case <- function(thetas, mu_beta, mu_alpha, sigma_alpha, sigma_beta) {
+  alpha <- rnorm(1, mu_alpha, sigma_alpha)
+  beta <- rnorm(1, mu_beta, sigma_beta)
   linear_func <- alpha + t(beta) * thetas
   link_func <- 1 / (1 + exp(-(linear_func)))
   y_out <- rbinom(prob = link_func, n = 1, size = 1)
   return(y_out)
 }
 
-draw_panel <- function(case_id, theta_df, mu_case_df, case_type) {
+draw_panel <- function(
+  case_id,
+  theta_df,
+  mu_case_df,
+  case_type,
+  sigma_alpha,
+  sigma_beta
+) {
   panel <- theta_df[sample(1:nrow(theta_df), size = 3), ] # 3 judges per panel
   thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
   mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ]) # 1 case type per panel
@@ -188,7 +201,9 @@ draw_panel <- function(case_id, theta_df, mu_case_df, case_type) {
     MARGIN = 1,
     FUN = draw_case,
     mu_beta = with(mu_case_df, mu_case_df[type == case_type, "mu_beta"]),
-    mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"])
+    mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"]),
+    sigma_alpha = sigma_alpha,
+    sigma_beta = sigma_beta
   )
   panel$outcome <- case
   panel$case_id <- case_id

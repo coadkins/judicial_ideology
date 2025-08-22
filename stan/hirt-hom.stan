@@ -106,13 +106,13 @@ model {
 // define variables that do not need to sampled
 // prior for theta and related parameters
   theta_raw ~ std_normal();
-  sigma_theta ~ normal(0,1) T[0, ];
-  gamma ~ normal(0,1); 
+  sigma_theta ~ lognormal(0, .25);
+  gamma ~ normal(0, 1);
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta_raw ~ std_normal();
-  sigma_alpha ~ normal(0, 1) T[0, ];
-  sigma_beta ~ normal(0, 1) T[0, ];
+  sigma_alpha ~ lognormal(0, .25);
+  sigma_beta ~ lognormal(0, .25);
   alpha_raw ~ std_normal();
   beta_raw ~ std_normal();
 // sample likelihood 
