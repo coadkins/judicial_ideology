@@ -24,7 +24,7 @@ tar_option_set(
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
-      prefix = "sum-to-zero",
+      prefix = "ref-group",
       endpoint = Sys.getenv("S3_ENDPOINT"),
       region = Sys.getenv("S3_REGION")
     )

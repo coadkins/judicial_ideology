@@ -6,7 +6,7 @@ on:
       - main
   push:
     branches:
-      - sum-to-zero 
+      - ref-group 
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
