@@ -112,5 +112,20 @@ list(
       param_hat = mu_theta[i],
       order = mcmc_data[[c(".join_data", "group_order")]]
     )
+  ),
+  tar_target(
+    mcmc_validation_plot,
+    {
+      # reorder data frame of judge info to match model order
+      mcmc_data
+      judge_order <- unique(mcmc_data[["ii"]])
+      dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
+      validation_plot(
+        data = reshaped_posterior,
+        id = id,
+        param = mu_theta_hat,
+        dgp_df = dgp_raw[judge_order, ]
+      )
+    }
   )
 )
