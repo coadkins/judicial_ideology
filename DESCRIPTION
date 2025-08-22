@@ -13,6 +13,7 @@ RoxygenNote: 7.0.0
 Imports: 
     bayesplot (>= 1.13.0),
     cmdstanr (>= 0.9.0),
+    crew (>= 1.2.1),
     dplyr (>= 1.1.4),
     ggplot2 (>= 3.5.2),
     here (>= 1.0.1),

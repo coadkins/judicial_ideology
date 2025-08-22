@@ -63,7 +63,8 @@ RUN --mount=type=secret,id=s3_key \
 
 # Default to bash so I can choose which script to run 
 ENTRYPOINT Rscript 'R/sync_targets_metadata.R' && \
-           Rscript -e 'targets::tar_make()'
+           Rscript -e 'targets::tar_make()' && \
+           Rscript -e 'targets::tar_meta_upload()'
 
 # Set environmental variables
 ENV RENV_WATCHDOG_ENABLED FALSE

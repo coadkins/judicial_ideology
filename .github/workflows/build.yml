@@ -58,7 +58,7 @@ jobs:
             type=schedule
             type=ref,event=branch, suffix=-latest
             type=ref, event=branch, suffix=-{{shortsha}}
-            type=ref,event=pr
+            type=ref,event=pr, suffix=-{{shortsha}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
