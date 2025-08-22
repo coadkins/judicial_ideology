@@ -136,13 +136,13 @@ simulate_data <- function(
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
   # this is onerous beceause year is "one-hot encoded"
-  x <- model.matrix(~ party + year + party * year)
-  dem_years <- which(party == 0 & seq_along(party) != 1) - 1
+  x <- model.matrix(~ 0 + party + year + party * year)
   year_cols <- grep("^year\\d+$", colnames(x))
   party_year_cols <- grep("^party:year\\d+$", colnames(x))
+  # subtract 1 from dem_years to match
+  dem_years <- which(party == 0)
   gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
-  gamma[, 1] <- 0 # Intercept
-  gamma[, 2] <- (-1) # gamma for party
+  gamma[, 1] <- (-1) # gamma for party
   gamma[, year_cols] <- seq(
     from = -.2,
     by = -.1,
