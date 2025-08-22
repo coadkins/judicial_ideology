@@ -93,8 +93,6 @@ model {
   outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
 }
 generated quantities {
-  vector[N] y_hat;
-  for (n in 1:N) {
-   y_hat[n] = bernoulli_rng(inv_logit((beta[jj[n]] * theta[ii[n]] + alpha[jj[n]])));
-  }
+  array[N] int<lower=0, upper=1> y_hat;
+  y_hat = bernoulli_rng(inv_logit((beta[jj] .* theta[ii] + alpha[jj])));
 }
