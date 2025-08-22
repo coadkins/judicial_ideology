@@ -59,7 +59,7 @@ simulate_data <- function(
 
   case_params <- data.frame(
     type = 1:n_case_types,
-    mu_beta = rnorm(n_case_types, 0, 2),
+    mu_beta = rnorm(n_case_types, 0, 1),
     mu_alpha = rnorm(n_case_types, 0, 1)
   )
 
