@@ -63,16 +63,20 @@ transformed parameters {
   gamma = append_row(gamma_int, gamma_free);
   mu_theta = x * gamma;
   // Non-centered parameterization for theta
-  vector[N_judge] theta;
+  vector[N_judge] theta_nc;
   // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
   // but vectorizing within groups is possible 
   for (g in 1 : G) {
     int start = group_start[g];
     int end = group_end[g];
-    theta[judges_by_group[start : end]] = mu_theta[g]
-                                          + sigma_theta
-                                            * theta_raw[judges_by_group[start : end]];
+    theta_nc[judges_by_group[start : end]] = mu_theta[g]
+                                             + sigma_theta
+                                               * theta_raw[judges_by_group[start : end]];
   }
+  // hard constraint on 
+  vector[N_judge] theta;
+  real theta_shift = mean(theta_nc[judges_by_group[group_start[mu_theta_ref_group]] : judges_by_group[group_end[mu_theta_ref_group]]]);
+  theta = theta_nc - theta_shift;
 }
 model {
   // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
