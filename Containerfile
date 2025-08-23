@@ -50,16 +50,11 @@ RUN Rscript R/install_stantargets.R
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # set up S3 access credentials
-RUN --mount=type=secret,id=s3_key \
-    --mount=type=secret,id=s3_secret \
-    --mount=type=secret,id=s3_bucket \
-    --mount=type=secret,id=s3_region \
-    --mount=type=secret,id=s3_endpoint \
-    echo "AWS_ACCESS_KEY_ID=$(cat /run/secrets/aws_key)" >> /usr/Renviron.site && \
-    echo "AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
-    echo "S3_BUCKET=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
-    echo "S3_REGION=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site && \
-    echo "S3_ENDPOINT=$(cat /run/secrets/aws_secret)" >> /usr/Renviron.site
+RUN --mount=type=secret,id=s3_key, env=AWS_ACCESS_KEY_ID \
+    --mount=type=secret,id=s3_secret, env=AWS_SECRET_ACCESS_KEY\
+    --mount=type=secret,id=s3_bucket, env=S3_BUCKET \
+    --mount=type=secret,id=s3_region, env=S3_REGION \
+    --mount=type=secret,id=s3_endpoint, env=S3_ENDPOINT \
 
 # Default to bash so I can choose which script to run 
 ENTRYPOINT Rscript 'R/sync_targets_metadata.R' && \
