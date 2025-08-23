@@ -50,7 +50,7 @@ RUN Rscript R/install_stantargets.R
 RUN echo 'cmdstanr::set_cmdstan_path("/usr/cmdstan/cmdstan-2.36.0")' >> .Rprofile
 
 # set up S3 access credentials
-RUN --mount=type=secret,id=s3_key, env=AWS_ACCESS_KEY_ID \
+RUN --mount=type=secret,id=s3_key \
     --mount=type=secret,id=s3_secret \
     --mount=type=secret,id=s3_bucket \
     --mount=type=secret,id=s3_region \
