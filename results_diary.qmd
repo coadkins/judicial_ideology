@@ -14,6 +14,7 @@ library(paws.storage)
 
 ```{r}
 #| label: update targets metadata
+tar_sync_meta()
 ```
 
 ```{r}
@@ -30,7 +31,7 @@ print(plot)
 
 ```{r}
 #| label: validation-plot
-# tar_read(validation_plot)
+tar_read(mcmc_validation_plot)
 ```
 
 # Comments
@@ -48,3 +49,6 @@ stri_c(
   collapse = "-"
 )
 ```
+
+- 2025-08-23-3119968a700f0552. Model from Git commit 256f9b6. "Soft" constraint on the reference group mean. This model is not identified.
+
