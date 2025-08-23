@@ -26,7 +26,8 @@ parameters {
   // parameters related to ability scores
   vector[N_judge] theta_raw;
   real<lower=0> sigma_theta; // homoskedastic variance for all groups of judges
-  vector[K] gamma; // coef for mu predictors 
+  real gamma_int; // coef for reference group
+  vector[K - 1] gamma_free; // coef for mu predictors 
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
@@ -58,30 +59,28 @@ transformed parameters {
   vector[G] mu_theta;
   // reference group
   // calculate mean ability for each group
+  vector[K] gamma;
+  gamma = append_row(gamma_int, gamma_free);
   mu_theta = x * gamma;
   // Non-centered parameterization for theta
-  vector[N_judge] theta_nc;
   vector[N_judge] theta;
   // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
   // but vectorizing within groups is possible 
   for (g in 1 : G) {
     int start = group_start[g];
     int end = group_end[g];
-    theta_nc[judges_by_group[start : end]] = mu_theta[g]
-                                             + sigma_theta
-                                               * theta_raw[judges_by_group[start : end]];
+    theta[judges_by_group[start : end]] = mu_theta[g]
+                                          + sigma_theta
+                                            * theta_raw[judges_by_group[start : end]];
   }
-  
-  // center theta around reference group
-  real theta_shift = mean(theta_nc[judges_by_group[group_start[mu_theta_ref_group] : group_end[mu_theta_ref_group]]]);
-  theta = theta_nc - theta_shift;
 }
 model {
   // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
   // prior for theta and related parameters
   theta_raw ~ std_normal();
   sigma_theta ~ lognormal(0, .25);
-  gamma ~ normal(-1, 1);
+  gamma_int ~ normal(0, .01); // soft constraint on reference group
+  gamma ~ normal(-1, 4);
   // Priors for case-specific parameters
   mu_alpha ~ std_normal();
   mu_beta ~ std_normal();
