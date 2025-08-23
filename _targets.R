@@ -60,14 +60,14 @@ list(
     stan_files = here("stan", "hirt-hom.stan"),
     data = simulate_data(
       cohort_g = 20,
-      judge_gi = 20,
-      case_ij = 20,
+      judge_gi = 30,
+      case_ij = 30,
       types_b = 20
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 10,
-    iter_sampling = 20,
+    iter_warmup = 500,
+    iter_sampling = 500,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
