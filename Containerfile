@@ -59,7 +59,7 @@ RUN --mount=type=secret,id=s3_key \
     echo "AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/s3_secret)" >> /usr/.Renviron && \
     echo "S3_BUCKET=$(cat /run/secrets/s3_bucket)" >> /usr/.Renviron && \
     echo "S3_REGION=$(cat /run/secrets/s3_region)" >> /usr/.Renviron && \
-    echo "S3_ENDPOINT=$(cat /run/secrets/s3_region)" >> /usr/.Renviron
+    echo "S3_ENDPOINT=$(cat /run/secrets/s3_endpoint)" >> /usr/.Renviron
 
 # Default to bash so I can choose which script to run 
 ENTRYPOINT Rscript 'R/sync_targets_metadata.R' && \
