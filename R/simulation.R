@@ -57,10 +57,16 @@ simulate_data <- function(
 
   colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 
+  # Sample covariance matrix from Inverse Wishart
+  Sigma <- MCMCpack::riwish(v = 3, S = diag(2))
+
+  # Sample bivariate normal for each case type
+  mu_ab_matrix <- MASS::mvrnorm(n = n_case_types, mu = c(0, 0), Sigma = Sigma)
+
   case_params <- data.frame(
     type = 1:n_case_types,
-    mu_beta = rnorm(n_case_types, 0, 1),
-    mu_alpha = rnorm(n_case_types, 0, 1)
+    mu_beta = mu_ab_matrix[, 2], # second column for beta
+    mu_alpha = mu_ab_matrix[, 1] # first column for alpha
   )
 
   sigma_alpha <- rlnorm(1, 0, .25)

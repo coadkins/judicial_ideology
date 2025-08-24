@@ -31,12 +31,17 @@ parameters {
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
-  vector[B] mu_alpha;
-  vector[B] mu_beta;
+  // mu_alpha and mu_beta sampled from bivariate normal
+  matrix[B, 2] mu_ab_raw; // raw parameters for bivariate normal
+  cov_matrix[2] Sigma; // covariance matrix for bivariate normal
   real<lower=0> sigma_beta;
   real<lower=0> sigma_alpha;
 }
 transformed parameters {
+  // Extract mu_alpha and mu_beta from bivariate normal sampling
+  vector[B] mu_alpha = mu_ab_raw[ : , 1];
+  vector[B] mu_beta = mu_ab_raw[ : , 2];
+  
   // non-centered parametrizaion for case parameters 
   vector[N_case_id] alpha;
   vector[N_case_id] beta_nc;
@@ -85,9 +90,15 @@ model {
   sigma_theta ~ lognormal(0, .25);
   gamma_int ~ normal(0, .01); // soft constraint on reference group
   gamma ~ normal(-1, 4);
+  
   // Priors for case-specific parameters
-  mu_alpha ~ std_normal();
-  mu_beta ~ std_normal();
+  //  Bivariate normal prior for mu_alpha and mu_beta
+  for (b in 1 : B) {
+    mu_ab_raw[b,  : ] ~ multi_normal([0, 0], Sigma);
+  }
+  // Inverse Wishart prior for covariance matrix
+  Sigma ~ inv_wishart(3, diag_matrix(rep_vector(1.0, 2)));
+  
   sigma_alpha ~ lognormal(0, .25);
   sigma_beta ~ lognormal(0, .25);
   alpha_raw ~ std_normal();

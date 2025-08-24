@@ -12,8 +12,8 @@ library(targets)
 library(qs2)
 library(paws.storage)
 
-# Use memory more sparingly
 tar_option_set(
+  # Use memory more sparingly
   memory = "transient",
   garbage_collection = TRUE,
   repository = "aws",
@@ -64,8 +64,8 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 100,
-    iter_sampling = 100,
+    iter_warmup = 500,
+    iter_sampling = 500,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
