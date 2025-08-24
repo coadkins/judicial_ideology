@@ -19,7 +19,7 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
-  n_cov <- 1 + (n_party - 1) + (n_cohort - 1) + (n_cohort - 1) * (n_party - 1)
+  n_cov <- (n_party - 1) + (n_cohort) + (n_cohort - 1) * (n_party - 1)
 
   gamma_sim <- construct_gamma(party, year)
 
@@ -88,7 +88,7 @@ simulate_data <- function(
         as.numeric()
     )
 
-  x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
+  x <- with(judge_covariates, model.matrix(~ 0 + party + year + party * year))
 
   stan_data <- list(
     N = nrow(cases_df),
@@ -136,13 +136,13 @@ simulate_data <- function(
 construct_gamma <- function(party, year) {
   # construct matrix of gamma parameters consistent with my theory
   # this is onerous beceause year is "one-hot encoded"
-  x <- model.matrix(~ 1 + party + year + party * year)
+  x <- model.matrix(~ 0 + party + year + party * year)
   year_cols <- grep("^year\\d+$", colnames(x))
   party_year_cols <- grep("^party:year\\d+$", colnames(x))
-  dem_years <- which(party == 0 & seq_along(party) != 1)
+  # subtract 1 from dem_years to match
+  dem_years <- which(party == 0)
   gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
-  gamma[, 1] <- 0 # intercept
-  gamma[, 2] <- (-1) # gamma for party
+  gamma[, 1] <- (-1) # gamma for party
   gamma[, year_cols] <- seq(
     from = -.2,
     by = -.1,
@@ -161,7 +161,7 @@ construct_gamma <- function(party, year) {
 
 draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
   # variables predicting mu
-  x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
+  x <- model.matrix(~ 0 + party + year + party * year) # 1xk row vector
   mu <- x %*% t(gamma)
   # draw theta_ij
   out <- rnorm(n, mu, sigma_theta)
