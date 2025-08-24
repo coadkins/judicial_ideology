@@ -14,7 +14,7 @@ library(paws.storage)
 
 ```{r}
 #| label: update targets metadata
-tar_sync_meta()
+tar_meta_sync()
 ```
 
 ```{r}
@@ -31,7 +31,8 @@ print(plot)
 
 ```{r}
 #| label: validation-plot
-tar_read(mcmc_validation_plot)
+plot2 <- tar_read(mcmc_validation_plot)
+print(plot2)
 ```
 
 # Comments
@@ -50,5 +51,7 @@ stri_c(
 )
 ```
 
-- 2025-08-23-3119968a700f0552. Model from Git commit 256f9b6. "Soft" constraint on the reference group mean. This model is not identified.
+- 2025-08-23-3119968a700f0552. Model from Git commit 256f9b6. "Soft" constraint on the means with respect to the reference group mean. This model is not identified.
+
+- 2025-08-24-f5bbae606a882937. Model from Git commit efed46cd. "Hard" constraint on the means with respect to reference group. This model appears to be well identified for theta, but does not appear to capturing the between group variation very well. 
 
