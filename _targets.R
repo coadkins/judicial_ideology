@@ -69,7 +69,8 @@ list(
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
-    stderr = R.utils::nullfile()
+    stderr = R.utils::nullfile(),
+    return_summary = FALSE
   ),
   # trace plots
   tar_target(
