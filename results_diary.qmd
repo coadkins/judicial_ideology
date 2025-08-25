@@ -50,10 +50,3 @@ stri_c(
   collapse = "-"
 )
 ```
-
-- 2025-08-23-3119968a700f0552. Model from Git commit 256f9b6. "Soft" constraint on the means with respect to the reference group mean. This model is not identified.
-
-- 2025-08-24-f5bbae606a882937. Model from Git commit efed46cd. "Hard" constraint on the means with respect to reference group. This model appears to be well identified for theta, but does not appear to capturing the between group variation very well.
-
-- 2025-08-25-ac2a1415cac34ee5. Model from Git commit e21fb69. Corrected assignment of prior to the intercept term. This model is not identified. 
-
