@@ -55,3 +55,5 @@ stri_c(
 
 - 2025-08-24-f5bbae606a882937. Model from Git commit efed46cd. "Hard" constraint on the means with respect to reference group. This model appears to be well identified for theta, but does not appear to capturing the between group variation very well. 
 
+- 2025-08-25-a967fdd1df34ae4a. Model from Git commit 8b26380. Re-run with a fix to how `theta_nc` was sliced. The model is not identified here. However, the identification problems be resolved by flipping just one chain, which I could handle easily with RSP. Otherwise, there is good separation between groups. I should compare these results with the latest run from the `mvn_cases` branch and choose the most promising one.
+
