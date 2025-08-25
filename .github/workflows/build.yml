@@ -6,7 +6,7 @@ on:
       - main
   push:
     branches:
-      - more_groups 
+      - more-judges 
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
