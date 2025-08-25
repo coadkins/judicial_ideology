@@ -5,7 +5,7 @@ validation_plot <- function(data, id, param, dgp_df) {
   ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
     ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
     ggplot2::geom_boxplot(
-      aes(x = year, y = theta, fill = factor(party), alpha = .5),
+      ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
       data = dgp_df,
       coef = 0,
       outlier.shape = NA
