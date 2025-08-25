@@ -74,11 +74,32 @@ list(
     stderr = R.utils::nullfile(),
     return_summary = FALSE
   ),
+  # format results as a posterior package draws_array
+  tar_target(
+    mcmc_draws_array,
+    posterior::as_draws_array(mcmc_mcmc_hirt.hom)
+  ),
+  # RSP
+  tar_target(
+    identified_draws_array,
+    identify_chains(
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i],
+      sign_d = -1
+    )
+  ),
   # trace plots
   tar_target(
     mcmc_trace_plots,
     bayesplot::mcmc_trace(
-      as_draws_array(mcmc_mcmc_hirt.hom),
+      mcmc_draws_array,
+      pars = paste0("mu_theta[", 1:20, "]")
+    )
+  ),
+  tar_target(
+    id_trace_plots,
+    bayesplot::mcmc_trace(
+      identified_draws_array,
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
@@ -112,7 +133,15 @@ list(
   tar_target(
     reshaped_posterior,
     reshape_posterior(
-      post_array = mcmc_mcmc_hirt.hom |> as_draws_array(),
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i],
+      order = mcmc_data[[c(".join_data", "g")]]
+    )
+  ),
+  tar_target(
+    reshaped_id_posterior,
+    reshape_posterior(
+      post_array = identified_draws_array,
       param_hat = mu_theta[i],
       order = mcmc_data[[c(".join_data", "g")]]
     )
@@ -126,6 +155,21 @@ list(
       dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
       validation_plot(
         data = reshaped_posterior,
+        id = id,
+        param = mu_theta_hat,
+        dgp_df = dgp_raw[judge_order, ]
+      )
+    }
+  ),
+  tar_target(
+    id_validation_plot,
+    {
+      # reorder data frame of judge info to match model order
+      mcmc_data
+      judge_order <- unique(mcmc_data[["ii"]])
+      dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
+      validation_plot(
+        data = reshaped_id_posterior,
         id = id,
         param = mu_theta_hat,
         dgp_df = dgp_raw[judge_order, ]
