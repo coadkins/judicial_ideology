@@ -59,8 +59,8 @@ list(
     name = mcmc,
     stan_files = here("stan", "hirt-hom.stan"),
     data = simulate_data(
-      cohort_g = 40,
-      judge_gi = 40,
+      cohort_g = 20,
+      judge_gi = 100,
       case_ij = 40,
       types_b = 20
     ),
