@@ -6,7 +6,7 @@ on:
       - main
   push:
     branches:
-      - no-int 
+      - no_int 
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
