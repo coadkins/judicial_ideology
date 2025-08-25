@@ -28,7 +28,8 @@ parameters {
   real<lower=0> sigma_theta; // homoskedastic variance for all groups of judges
   real gamma_int; // coef for reference group
   real gamma_party;
-  vector[K - 2] gamma_free; // coef for mu predictors 
+  vector[G - 1] gamma_cohort; // coef for mu predictors 
+  vector[G - 1] gamma_interact;
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
@@ -66,7 +67,9 @@ transformed parameters {
   // reference group
   // calculate mean ability for each group
   vector[K] gamma;
-  gamma = append_row(gamma_int, append_row(gamma_party, gamma_free));
+  gamma = append_row(gamma_int,
+                     append_row(gamma_party,
+                                append_row(gamma_cohort, gamma_interact)));
   mu_theta = x * gamma;
   // Non-centered parameterization for theta
   vector[N_judge] theta_nc;
@@ -91,8 +94,8 @@ model {
   sigma_theta ~ lognormal(0, .25);
   gamma_int ~ normal(0, .01); // soft constraint on reference group
   gamma_party ~ normal(-1, 1);
-  gamma ~ std_normal();
-  
+  gamma_cohort ~ normal(-1, 1);
+  gamma_interact ~ normal(-1, 1);
   // Priors for case-specific parameters
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
