@@ -78,7 +78,7 @@ transformed parameters {
   }
   // hard constraint on 
   vector[N_judge] theta;
-  real theta_shift = mean(theta_nc[judges_by_group[group_start[mu_theta_ref_group]] : judges_by_group[group_end[mu_theta_ref_group]]]);
+  real theta_shift = mean(theta_nc[judges_by_group[group_start[mu_theta_ref_group] : group_end[mu_theta_ref_group]]]);
   theta = theta_nc - theta_shift;
 }
 model {
