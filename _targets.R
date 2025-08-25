@@ -7,6 +7,7 @@
 library(here)
 library(stantargets)
 library(stringi)
+library(tidybayes)
 library(tarchetypes)
 library(targets)
 library(qs2)
@@ -19,6 +20,7 @@ tar_option_set(
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
+  controller = crew::crew_controller_local(workers = 1),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
@@ -85,7 +87,10 @@ list(
   tar_target(
     mcmc_prediction_draws,
     {
-      prediction_draws <- spread_draws(mcmc_draws_hirt.hom, y_hat[..])[,
+      prediction_draws <- tidybayes::spread_draws(
+        mcmc_draws_hirt.hom,
+        y_hat[..]
+      )[,
         -c(1:3)
       ] |>
         as.matrix()
@@ -95,12 +100,12 @@ list(
   tar_target(
     mcmc_ppc_plot,
     {
-      ppc_bars_grouped(
+      bayesplot::ppc_bars_grouped(
         y = mcmc_data[["outcome"]],
         yrep = mcmc_prediction_draws,
         group = mcmc_data[[c(".join_data", "g_ij")]]
       ) +
-        ggtitle("PPC Check by Cohort")
+        ggplot2::ggtitle("PPC Check by Cohort")
     }
   ),
   # targets related to validation plot
