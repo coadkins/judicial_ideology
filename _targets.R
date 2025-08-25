@@ -60,8 +60,8 @@ list(
     stan_files = here("stan", "hirt-hom.stan"),
     data = simulate_data(
       cohort_g = 20,
-      judge_gi = 30,
-      case_ij = 30,
+      judge_gi = 40,
+      case_ij = 40,
       types_b = 20
     ),
     chains = 4,
@@ -78,7 +78,7 @@ list(
   tar_target(
     mcmc_trace_plots,
     bayesplot::mcmc_trace(
-      as_draws_array(mcmc_mcmc_hirt.hom),
+      posterior::as_draws_array(mcmc_mcmc_hirt.hom),
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
