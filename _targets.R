@@ -74,6 +74,20 @@ list(
     stderr = R.utils::here("errors.txt"),
     return_summary = FALSE
   ),
+  # format results as a posterior package draws_array
+  tar_target(
+    mcmc_draws_array,
+    mcmc_mcmc_hirt.hom$draws(variables = "mu_theta", format = "draws_array")
+  ),
+  # RSP
+  tar_target(
+    identified_draws_array,
+    identify_chains(
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i],
+      sign_d = -1
+    )
+  ),
   # trace plots
   tar_target(
     mcmc_trace_plots,
@@ -87,13 +101,11 @@ list(
   tar_target(
     mcmc_prediction_draws,
     {
-      prediction_draws <- tidybayes::spread_draws(
-        mcmc_draws_hirt.hom,
-        y_hat[..]
-      )[,
-        -c(1:3)
-      ] |>
-        as.matrix()
+      # Extract y_hat directly as matrix - much faster
+      mcmc_mcmc_hirt.hom$draws(
+        variables = "y_hat",
+        format = "matrix"
+      )
     }
   ),
   ## output ppc plot
