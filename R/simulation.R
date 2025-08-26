@@ -295,3 +295,59 @@ fix_judge_idx <- function(df, x, y, target) {
 #' the second element is a vector of group start indices,
 #' and the third element is a vector of group end indices
 #'
+find_knots <- function(party) {
+  # Compare each element with the next one
+  knots <- party[-length(party)] != party[-1]
+  # Get indices where transitions occur (add 1 to get the higher index)
+  which(knots) + 1
+}
+
+visualize_variation_theta <- function(dgp_df) {
+  ggplot2::geom_boxplot(
+    ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
+    data = dgp_df,
+    coef = 0,
+    outlier.shape = NA
+  ) +
+    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::ylab("Theta") +
+    ggplot2::xlab(NULL) +
+    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+}
+
+validation_plot <- function(data, id, param, dgp_df) {
+  ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
+    ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
+    ggplot2::geom_boxplot(
+      ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
+      data = dgp_df,
+      coef = 0,
+      outlier.shape = NA
+    ) +
+    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::ylab("Mu Theta") +
+    ggplot2::xlab(NULL) +
+    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+}
+
+visualize_variation_outcome <- function(outcome, g_ij) {
+  data <- tibble::tibble(outcome = outcome, groups = g_ij)
+  ggplot2::ggplot(data, ggplot2::aes(x = outcome)) +
+    ggplot2::geom_bar(fill = "steelblue", alpha = 0.7) +
+    ggplot2::facet_wrap(~groups, ncol = 5) +
+    ggplot2::labs(
+      title = "Outcomes by Cohort",
+      y = "",
+      x = ""
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(size = 10)
+    )
+}
