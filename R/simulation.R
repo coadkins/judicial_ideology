@@ -98,7 +98,15 @@ simulate_data <- function(
   x <- cbind(
     1,
     judge_covariates[, "party"],
-    with(judge_covariates, splines::bs(year, knots = knots, degree = 3))
+    with(
+      judge_covariates,
+      splines::bs(
+        as.numeric(year),
+        knots = knots,
+        degree = 3,
+        Boundary.knots = c(2, 19)
+      )
+    )
   )
 
   stan_data <- list(
