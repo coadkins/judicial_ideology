@@ -104,7 +104,7 @@ simulate_data <- function(
         as.numeric(year),
         knots = knots,
         degree = 3,
-        Boundary.knots = c(2, 19)
+        Boundary.knots = c(1, 20)
       )
     )
   )
@@ -236,7 +236,6 @@ gen_group_idx <- function(
   y,
   names = c("judges_by_group", "group_start", "group_end")
 ) {
-  # Load required library
   # Get unique individuals by group, arranged by year
   x_by_group <- df[!duplicated(df[[x]]), ] |>
     dplyr::arrange(year)
