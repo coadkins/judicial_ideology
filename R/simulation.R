@@ -11,29 +11,43 @@ simulate_data <- function(
   # simulate data
   set.seed(02474)
 
-  ## define constants
+  ## basic quantities
   n_cohort <- cohort_g
-  year <- factor(1:n_cohort)
+  year <- 1:n_cohort
   n_party <- 2
   party <- rbinom(n_cohort, size = 1, prob = .5)
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
+
+  ## derived quantities
   knots <- find_knots(party)
   n_knots <- length(knots)
-  gamma_sim <- construct_gamma(party, year)
+  x <- model.matrix(
+    ~ 1 +
+      splines::bs(
+        year,
+        knots = knots,
+        degree = 3,
+        Boundary.knots = c(1, length(year))
+      )
+  )
+  gamma_sim <- simulate_gamma(x, knots, party)
 
   sigma_theta <- rlnorm(1, 0, .25)
-  # vectorize draw_theta_ij() over party and year
-  theta_raw_list <- Map(
-    draw_theta_ij_raw,
-    party = party,
-    year = year,
-    MoreArgs = list(
-      n = n_judge / n_cohort,
-      gamma = gamma_sim,
-      sigma_theta = sigma_theta
-    )
+  # vectorize draw_theta_ij() over rows of x
+  theta_raw_list <- apply(
+    x,
+    MARGIN = 1,
+    \(x) {
+      draw_theta_ij_raw(
+        x = x,
+        n = n_judge / n_cohort,
+        gamma = gamma_sim,
+        sigma_theta = sigma_theta
+      )
+    },
+    simplify = FALSE
   )
 
   # reference group center the raw simulated theta
@@ -71,7 +85,6 @@ simulate_data <- function(
 
   sigma_alpha <- rlnorm(1, 0, .25)
   sigma_beta <- rlnorm(1, 0, .25)
-
   cases_df <- Map(
     draw_panel,
     case_id = 1:n_cases,
@@ -93,22 +106,6 @@ simulate_data <- function(
       with(cases_df, cases_df[!duplicated(year), "year"]) |>
         as.numeric()
     )
-
-  # use basis spline for cohort
-  x <- cbind(
-    1,
-    judge_covariates[, "party"],
-    with(
-      judge_covariates,
-      splines::bs(
-        as.numeric(year),
-        knots = knots,
-        degree = 3,
-        Boundary.knots = c(1, 20)
-      )
-    )
-  )
-
   stan_data <- list(
     N = nrow(cases_df),
     N_case_id = length(unique(cases_df$case_id)),
@@ -152,35 +149,63 @@ simulate_data <- function(
   return(stan_data)
 }
 
-construct_gamma <- function(party, year) {
+simulate_gamma <- function(
+  x,
+  knots,
+  party,
+  trend_strength = -0.1,
+  shift_0_to_1 = -0.5,
+  shift_1_to_0 = 0.5
+) {
   # construct matrix of gamma parameters consistent with my theory
-  # this is onerous beceause year is "one-hot encoded"
-  x <- model.matrix(~ 1 + party + year + party * year)
-  year_cols <- grep("^year\\d+$", colnames(x))
-  party_year_cols <- grep("^party:year\\d+$", colnames(x))
-  dem_years <- which(party == 0 & seq_along(party) != 1)
-  gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
-  gamma[, 1] <- 0 # intercept
-  gamma[, 2] <- (-1) # gamma for party
-  gamma[, year_cols] <- seq(
-    from = -.2,
-    by = -.1,
-    length.out = length(year_cols)
-  ) # gamma for each year (theta1)
-  # gamma for each party*year(theta)
-  gamma[, party_year_cols[-dem_years]] <- seq(
-    from = -.2,
-    by = -.4, # reps.
-    length.out = length(party_year_cols[-dem_years])
-  )
-  gamma[, party_year_cols[dem_years]] <-
-    rep(0, length(party_year_cols[dem_years]))
+  # need to use a basis spline to avoid multicollinearity in linear model
+  # Initialize coefficients
+  n_basis <- ncol(x)
+  gamma <- matrix(NA, ncol = n_basis, nrow = 1)
+
+  # Set intercept
+  gamma[, 1] <- 0 # starting point
+
+  # Add negative trend over time for non-intercept terms
+  basis_weights <- seq(0, trend_strength, length.out = n_basis - 1)
+  gamma[, -1] <- basis_weights
+
+  # Identify knot types and add shifts
+  # Because each knot is influenced by multiple asis functions
+  # this loop iteratively updates the knot coefficients
+
+  for (i in seq_along(knots)) {
+    knot_pos <- knots[i]
+
+    # Determine if this is a 0->1 or 1->0 transition
+    if (knot_pos > 1 && knot_pos <= length(party)) {
+      transition_type <- if (party[knot_pos - 1] == 0 && party[knot_pos] == 1) {
+        "0_to_1"
+      } else if (party[knot_pos - 1] == 1 && party[knot_pos] == 0) {
+        "1_to_0"
+      } else {
+        "other"
+      }
+
+      # Find which basis functions are most active around this knot
+      # and adjust their coefficients (non active knots are 0)
+      knot_influence <- x[knot_pos, ]
+      knot_influence[1] <- 0 # don't modify intercept
+
+      if (transition_type == "0_to_1") {
+        # Shift towards negative
+        gamma[1, ] <- gamma[1, ] + shift_0_to_1 * knot_influence
+      } else if (transition_type == "1_to_0") {
+        # Shift towards positive
+        gamma[1, ] <- gamma[1, ] + shift_1_to_0 * knot_influence
+      }
+    }
+  }
   return(gamma)
 }
 
-draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
+draw_theta_ij_raw <- function(n, x, gamma, sigma_theta) {
   # variables predicting mu
-  x <- model.matrix(~ 1 + party + year + party * year) # 1xk row vector
   mu <- x %*% t(gamma)
   # draw theta_ij
   out <- rnorm(n, mu, sigma_theta)
