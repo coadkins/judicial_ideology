@@ -24,7 +24,7 @@ tar_option_set(
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
-      prefix = "mvn_cases",
+      prefix = "splines",
       endpoint = Sys.getenv("S3_ENDPOINT"),
       region = Sys.getenv("S3_REGION")
     )
@@ -71,7 +71,7 @@ list(
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
-    stderr = R.utils::nullfile(),
+    stderr = R.utils::here("errors.txt"),
     return_summary = FALSE
   ),
   # trace plots
