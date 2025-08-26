@@ -338,3 +338,23 @@ find_knots <- function(party) {
   # Get indices where transitions occur (add 1 to get the higher index)
   which(knots) + 1
 }
+
+visualize_variation_theta <- function() {}
+
+visualize_variation_outcome <- function(outcome, g_ij) {
+  data <- tibble::tibble(outcome = outcome, groups = g_ij)
+  ggplot2::ggplot(data, ggplot2::aes(x = outcome)) +
+    ggplot2::geom_bar(fill = "steelblue", alpha = 0.7) +
+    ggplot2::facet_wrap(~groups, ncol = 5) +
+    ggplot2::labs(
+      title = "Outcomes by Cohort",
+      y = "",
+      x = ""
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(size = 10)
+    )
+}
