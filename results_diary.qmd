@@ -14,7 +14,7 @@ library(paws.storage)
 
 ```{r}
 #| label: update targets metadata
-tar_meta_sync()
+tar_meta_download()
 ```
 
 ```{r}
