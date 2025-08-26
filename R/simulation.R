@@ -339,7 +339,37 @@ find_knots <- function(party) {
   which(knots) + 1
 }
 
-visualize_variation_theta <- function() {}
+visualize_variation_theta <- function(dgp_df) {
+  ggplot2::geom_boxplot(
+    ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
+    data = dgp_df,
+    coef = 0,
+    outlier.shape = NA
+  ) +
+    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::ylab("Theta") +
+    ggplot2::xlab(NULL) +
+    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+}
+
+validation_plot <- function(data, id, param, dgp_df) {
+  ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
+    ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
+    ggplot2::geom_boxplot(
+      ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
+      data = dgp_df,
+      coef = 0,
+      outlier.shape = NA
+    ) +
+    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::ylab("Mu Theta") +
+    ggplot2::xlab(NULL) +
+    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+}
 
 visualize_variation_outcome <- function(outcome, g_ij) {
   data <- tibble::tibble(outcome = outcome, groups = g_ij)
