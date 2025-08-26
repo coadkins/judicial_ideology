@@ -71,7 +71,7 @@ list(
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
-    stderr = R.utils::here("errors.txt"),
+    stderr = R.utils::nullfile(),
     return_summary = FALSE
   ),
   # format results as a posterior package draws_array
