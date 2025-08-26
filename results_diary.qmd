@@ -57,3 +57,4 @@ stri_c(
 
 - 2025-08-25-ac2a1415cac34ee5. Model from Git commit e21fb69. Corrected assignment of prior to the intercept term. This model is not identified. 
 
+- 2025-08-25-7bf8bd016013471d. Model from Git commit e1d76eb. Corrected an error in how I was slicing `theta_nc` when calculating the non-centered version of `theta`. Model has good mixing of chains, but is not capturing between group variation very well. 
