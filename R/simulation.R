@@ -19,8 +19,8 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
-  n_cov <- 1 + (n_party - 1) + (n_cohort - 1) + (n_cohort - 1) * (n_party - 1)
-
+  knots <- find_knots(party)
+  n_knots <- length(knots)
   gamma_sim <- construct_gamma(party, year)
 
   sigma_theta <- rlnorm(1, 0, .25)
@@ -94,7 +94,12 @@ simulate_data <- function(
         as.numeric()
     )
 
-  x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
+  # use basis spline for cohort
+  x <- cbind(
+    1,
+    judge_covariates[, "party"],
+    with(judge_covariates, splines::bs(party, knots = knots, degree = 3))
+  )
 
   stan_data <- list(
     N = nrow(cases_df),
@@ -295,3 +300,9 @@ fix_judge_idx <- function(df, x, y, target) {
 #' the second element is a vector of group start indices,
 #' and the third element is a vector of group end indices
 #'
+find_knots <- function(party) {
+  # Compare each element with the next one
+  knots <- party[-length(party)] != party[-1]
+  # Get indices where transitions occur (add 1 to get the higher index)
+  which(knots) + 1
+}
