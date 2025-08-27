@@ -74,11 +74,32 @@ list(
     stderr = R.utils::nullfile(),
     return_summary = FALSE
   ),
+  # format results as a posterior package draws_array
+  tar_target(
+    mcmc_draws_array,
+    mcmc_mcmc_hirt.hom$draws(variables = "mu_theta", format = "draws_array")
+  ),
+  tar_target(
+    outcome_distribution,
+    visualize_variation_outcome(
+      mcmc_data[["outcome"]],
+      mcmc_data[[c(".join_data", "g_ij")]]
+    )
+  ),
+  # RSP
+  tar_target(
+    identified_draws_array,
+    identify_chains(
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i],
+      sign_d = -1
+    )
+  ),
   # trace plots
   tar_target(
     mcmc_trace_plots,
     bayesplot::mcmc_trace(
-      posterior::as_draws_array(mcmc_mcmc_hirt.hom),
+      mcmc_draws_array,
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
@@ -112,7 +133,7 @@ list(
   tar_target(
     reshaped_posterior,
     reshape_posterior(
-      post_array = mcmc_mcmc_hirt.hom |> as_draws_array(),
+      post_array = mcmc_draws_array,
       param_hat = mu_theta[i],
       order = mcmc_data[[c(".join_data", "g")]]
     )
