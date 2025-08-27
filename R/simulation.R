@@ -19,18 +19,12 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
-
   ## derived quantities
-  knots <- find_knots(party)
-  n_knots <- length(knots)
-  x <- model.matrix(
-    ~ 1 +
-      splines::bs(
-        year,
-        knots = knots,
-        degree = 3,
-        Boundary.knots = c(1, length(year))
-      )
+  knots <- find_knots(party, n_knots = 5)
+  x <- splines::bs(
+    year,
+    knots = knots,
+    intercept = TRUE
   )
   gamma_sim <- simulate_gamma(x, knots, party)
 
@@ -52,8 +46,7 @@ simulate_data <- function(
 
   # reference group center the raw simulated theta
   theta_reference <- theta_raw_list[[1]]
-  theta_vector <- (do.call(c, theta_raw_list) - mean(theta_reference)) /
-    sd(theta_reference)
+  theta_vector <- (do.call(c, theta_raw_list) - mean(theta_reference))
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
@@ -153,9 +146,9 @@ simulate_gamma <- function(
   x,
   knots,
   party,
-  trend_strength = -0.1,
-  shift_0_to_1 = -0.5,
-  shift_1_to_0 = 0.5
+  trend_strength = -2,
+  shift_0_to_1 = -5,
+  shift_1_to_0 = .5
 ) {
   # construct matrix of gamma parameters consistent with my theory
   # need to use a basis spline to avoid multicollinearity in linear model
@@ -332,20 +325,31 @@ fix_judge_idx <- function(df, x, y, target) {
 #' the second element is a vector of group start indices,
 #' and the third element is a vector of group end indices
 #'
-find_knots <- function(party) {
+find_knots <- function(party, n_knots) {
   # Compare each element with the next one
-  knots <- party[-length(party)] != party[-1]
-  # Get indices where transitions occur (add 1 to get the higher index)
-  which(knots) + 1
+  candidate_knots <- party[-length(party)] != party[-1]
+  # Get indices where transitions occur
+  candidate_knots <- which(candidate_knots)
+
+  if (length(candidate_knots) <= n_knots) {
+    return(candidate_knots)
+  }
+
+  # Select evenly spaced knots from candidatesk
+  indices <- round(seq(1, length(candidate_knots), length.out = n_knots))
+  selected_knots <- candidate_knots[indices]
+
+  return(selected_knots)
 }
 
 visualize_variation_theta <- function(dgp_df) {
-  ggplot2::geom_boxplot(
-    ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
-    data = dgp_df,
-    coef = 0,
-    outlier.shape = NA
+  ggplot2::ggplot(
+    dgp_df,
+    ggplot2::aes(x = year, y = theta, fill = factor(party))
   ) +
+    ggplot2::geom_boxplot(
+      outlier.shape = NA
+    ) +
     ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
     ggplot2::theme_minimal() +
     ggplot2::theme(legend.position = "none") +

@@ -79,6 +79,13 @@ list(
     mcmc_draws_array,
     mcmc_mcmc_hirt.hom$draws(variables = "mu_theta", format = "draws_array")
   ),
+  tar_target(
+    outcome_distribution,
+    visualize_variation_outcome(
+      mcmc_data[["outcome"]],
+      mcmc_data[[c(".join_data", "g_ij")]]
+    )
+  ),
   # RSP
   tar_target(
     identified_draws_array,
@@ -92,7 +99,7 @@ list(
   tar_target(
     mcmc_trace_plots,
     bayesplot::mcmc_trace(
-      posterior::as_draws_array(mcmc_mcmc_hirt.hom),
+      mcmc_draws_array,
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
@@ -124,7 +131,7 @@ list(
   tar_target(
     reshaped_posterior,
     reshape_posterior(
-      post_array = mcmc_mcmc_hirt.hom |> as_draws_array(),
+      post_array = mcmc_draws_array,
       param_hat = mu_theta[i],
       order = mcmc_data[[c(".join_data", "g")]]
     )
