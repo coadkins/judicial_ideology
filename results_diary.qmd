@@ -14,7 +14,7 @@ library(paws.storage)
 
 ```{r}
 #| label: update targets metadata
-tar_meta_sync()
+tar_meta_download()
 ```
 
 ```{r}
@@ -51,4 +51,4 @@ stri_c(
 )
 ```
 
-- 
+1. 2025-08-28-4d95ba4e6e0af3fe. Model from Git commit 6b2aac5. Extremly poor mixing among chains - each chain explores a small subset of the total space.
