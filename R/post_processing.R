@@ -88,3 +88,51 @@ identify_chains <- function(
   # this is a valid input for posterior::mcmc_trace()
   return(id_array)
 }
+
+identify_draws <- function(
+  post_array = fit_array,
+  param_hat = theta[i],
+  sign = -1
+) {
+  param_hat <- rlang::enquo(param_hat)
+  # transform the input array into a `draws_df` objects
+  post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
+    dplyr::ungroup()
+  # convert tidybayes syntax for variable names
+  # into a quosure that identifies the column
+  # containing the parameter values
+  value_hat_col <- rlang::as_label(param_hat) |>
+    gsub("^\\~|\\[.*", "", x = _) |>
+    rlang::parse_expr()
+  # figure out which draws to flip
+  # use chains/iterations since that is how draws_array is structured
+  draw_flips <- post_long_df |>
+    dplyr::group_by(.iteration, .chain) |>
+    dplyr::mutate(
+      mean_d = mean.default(!!value_hat_col),
+      flip = (sign(!!value_hat_col) * sign) < 0,
+      !!value_hat_col := dplyr::case_when(
+        flip == TRUE ~ -1 * !!value_hat_col,
+        .default = !!value_hat_col
+      )
+    )
+  sub_id_array <- tidybayes::unspread_draws(draw_flips, !!param_hat) |>
+    posterior::as_draws_array()
+  # copy the original array and return it with flipped values
+  id_array <- post_array
+  # create a logical vector for every element col
+  # that needs to be replaced in the original
+  vars_lgl <- stringr::str_detect(
+    unlist(dimnames(id_array)["variable"]), #var name for evey element
+    paste0(
+      rlang::as_label(value_hat_col), # regexp made from `value_col` expression
+      "\\[.*"
+    )
+  )
+  suppressWarnings(
+    id_array[,, vars_lgl] <- sub_id_array
+  )
+  # return in the same format as input - draws_array
+  # this is a valid input for posterior::mcmc_trace()
+  return(id_array)
+}
