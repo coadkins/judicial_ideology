@@ -107,7 +107,7 @@ identify_draws <- function(
   # figure out which draws to flip
   # use chains/iterations since that is how draws_array is structured
   draw_flips <- post_long_df |>
-    dplyr::group_by(.iteration, .chain) |>
+    dplyr::group_by(i, .chain) |>
     dplyr::mutate(
       mean_d = mean.default(!!value_hat_col),
       flip = (sign(!!value_hat_col) * sign) < 0,
