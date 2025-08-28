@@ -191,7 +191,10 @@ simulate_data <- function(
   # Append additional data to facilitate identifcation
   stan_data <- append(
     stan_data,
-    list(mu_theta_ref_group = 1),
+    list(
+      mu_case_pos_idx = which(case_params[, 2] == max(case_params[, 2])),
+      mu_case_neg_idx = which(case_params[, 2] == min(case_params[, 2]))
+    ),
   )
   return(stan_data)
 }
