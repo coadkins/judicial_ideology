@@ -80,10 +80,9 @@ transformed parameters {
                                              + sigma_theta
                                                * theta_raw[judges_by_group[start : end]];
   }
-  // hard constraint on 
+  // center and scale theta 
   vector[N_judge] theta;
-  real theta_shift = mean(theta_nc[judges_by_group[group_start[mu_theta_ref_group] : group_end[mu_theta_ref_group]]]);
-  theta = theta_nc - theta_shift;
+  theta = (theta_nc - mean(theta_nc)) / sd(theta_nc);
 }
 model {
   // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
@@ -98,7 +97,7 @@ model {
     mu_ab_raw[b,  : ] ~ multi_normal([0, 0], Sigma);
   }
   // Inverse Wishart prior for covariance matrix
-  Sigma ~ inv_wishart(3, diag_matrix(rep_vector(1.0, 2)));
+  Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
   
   sigma_alpha ~ lognormal(0, .25);
   sigma_beta ~ lognormal(0, .25);
