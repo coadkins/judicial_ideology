@@ -144,8 +144,9 @@ simulate_data <- function(
         as.numeric()
     )
 
-  x <- splines::ns(
+  x <- splines::bs(
     year,
+    knots = find_knots(year, 4),
     intercept = TRUE
   )
 
