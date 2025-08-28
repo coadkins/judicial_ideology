@@ -83,7 +83,7 @@ simulate_data <- function(
 
   # standardize theta
   theta_vector <- do.call(c, theta_raw_list)
-  # theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
+  theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
