@@ -6,7 +6,7 @@ on:
       - main
   push:
     branches:
-      - party_means 
+      - strong_constraints 
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:

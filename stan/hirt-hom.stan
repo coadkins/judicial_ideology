@@ -53,6 +53,7 @@ transformed parameters {
   vector[B] mu_beta = mu_ab[ : , 2];
   
   // non-centered parametrizaion for case parameters 
+  vector[N_case_id] alpha_nc;
   vector[N_case_id] alpha;
   vector[N_case_id] beta_nc;
   vector[N_case_id] beta;
@@ -60,16 +61,17 @@ transformed parameters {
   for (b in 1 : B) {
     int start = type_start[b];
     int end = type_end[b];
-    alpha[cases_by_type[start : end]] = mu_alpha[b]
-                                        + sigma_alpha
-                                          * alpha_raw[cases_by_type[start : end]];
+    alpha_nc[cases_by_type[start : end]] = mu_alpha[b]
+                                           + sigma_alpha
+                                             * alpha_raw[cases_by_type[start : end]];
     beta_nc[cases_by_type[start : end]] = mu_beta[b]
                                           + sigma_beta
                                             * beta_raw[cases_by_type[start : end]];
   }
   // scale and shift beta to normal(0,1)
   beta = (beta_nc - mean(beta_nc)) / sd(beta_nc);
-  
+  // scale and shift alpha to normal(0, 1)
+  alpha = (alpha_nc - mean(alpha_nc) / sd(alpha_nc));
   // construct mu_theta
   vector[G] mu_theta;
   vector[N_d] mu_theta_dem;
@@ -119,8 +121,8 @@ model {
   // Inverse Wishart prior for covariance matrix
   Sigma ~ inv_wishart(3, diag_matrix(rep_vector(1.0, 2)));
   
-  sigma_alpha ~ lognormal(0, .25);
-  sigma_beta ~ lognormal(0, .25);
+  sigma_alpha ~ lognormal(0.5, .2);
+  sigma_beta ~ lognormal(0.5, .2);
   alpha_raw ~ std_normal();
   beta_raw ~ std_normal();
   // sample likelihood 
