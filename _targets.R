@@ -103,6 +103,13 @@ list(
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
+  tar_target(
+    id_trace_plots,
+    bayesplot::mcmc_trace(
+      identified_draws_array,
+      pars = paste0("mu_theta[", 1:20, "]")
+    )
+  ),
   # targets related to validation plot
   tar_target(
     reshaped_posterior,
@@ -126,5 +133,25 @@ list(
         dgp_df = dgp_raw[judge_order, ]
       )
     }
-  )
+  ),
+  tar_target(
+    reshaped_id,
+    reshape_posterior(
+      post_array = identified_draws_array,
+      param_hat = mu_theta[i],
+      order = mcmc_data[[c(".join_data", "g")]]
+    )
+  ),
+  tar_target(id_validation_plot, {
+    # reorder data frame of judge info to match model order
+    mcmc_data
+    judge_order <- unique(mcmc_data[["ii"]])
+    dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
+    validation_plot(
+      data = reshaped_id,
+      id = id,
+      param = mu_theta_hat,
+      dgp_df = dgp_raw[judge_order, ]
+    )
+  })
 )
