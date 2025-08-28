@@ -108,7 +108,7 @@ list(
   tar_target(
     mcmc_prediction_draws,
     {
-      y_hat_draws <- mcmc_draws_hirt.hom$draws(
+      y_hat_draws <- mcmc_mcmc_hirt.hom$draws(
         variables = "y_hat",
         format = "draws_df"
       )
