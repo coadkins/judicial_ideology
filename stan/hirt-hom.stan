@@ -4,15 +4,16 @@ data {
   int<lower=1> B; // number of case types
   int<lower=1> N_judge;
   int<lower=1> G; // number of groups
-  int<lower=1> K; // number of covariates to model group mean
+  int<lower=1> K_d; // number of covariates to model group mean for dem.
+  int<lower=1> K_r; // number of covariates to model group mean for rep.
   array[N] int<lower=0, upper=1> outcome; // binomial outcome (judge votes)
   array[N] int<lower=1, upper=N_judge> ii; //tracks judge for obs. n
   array[N] int<lower=1, upper=N_case_id> jj; //tracks case for obs. n
   // data to calculate the group means for theta
-  matrix[G, K] x_d; // model matrix for dems.
-  matrix[G, K] x_r; // model matrix for reps.
   int<lower=0> N_d; // number of dem cohorts 
   int<lower=0> N_r; // number of rep cohorts
+  matrix[N_d, K_d] x_d; // model matrix for dems.
+  matrix[N_r, K_r] x_r; // model matrix for reps.
   array[N_d] int<lower=1, upper=G> idx_d; // idx for dems in mu_theta vector
   array[N_r] int<lower=1, upper=G> idx_r; // idx for reps in mu_theta vector
   // These data structures facilitate identification by creating 
@@ -32,8 +33,8 @@ parameters {
   vector[N_judge] theta_raw;
   real<lower=0> mu_sigma_theta; // std. deviation of group means from grand mean
   real<lower=0> sigma_theta; // homoskedastic variance for all groups of judges
-  vector[G] gamma_d; // predicts mu_theta dem 
-  vector[G] gamma_r; // predicts mu_theta rep
+  vector[K_d] gamma_d; // predicts mu_theta dem 
+  vector[K_r] gamma_r; // predicts mu_theta rep
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
@@ -72,8 +73,6 @@ transformed parameters {
   vector[N_r] mu_theta_rep;
   // reference group
   // calculate mean ability for each group
-  vector[K] gamma;
-  
   mu_theta[idx_d] = x_d * gamma_d;
   mu_theta[idx_r] = x_r * gamma_r;
   // Non-centered parameterization for theta
