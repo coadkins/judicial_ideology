@@ -40,7 +40,7 @@ simulate_data <- function(
   gamma_d <- simulate_gamma(
     x_d[,],
     knots = find_knots(party = year[idx_d], n_knots = n_knots),
-    trend_strength = -1
+    trend_strength = -.5
   )
 
   gamma_r <- simulate_gamma(
@@ -83,7 +83,7 @@ simulate_data <- function(
 
   # standardize theta
   theta_vector <- do.call(c, theta_raw_list)
-  theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
+  # theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
@@ -101,11 +101,20 @@ simulate_data <- function(
 
   colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 
-  # Sample covariance matrix from Inverse Wishart
-  Sigma <- MCMCpack::riwish(v = 3, S = diag(2))
-
-  # Sample bivariate normal for each case type
-  mu_ab_matrix <- MASS::mvrnorm(n = n_case_types, mu = c(0, 0), Sigma = Sigma)
+  # Covariance matrix for mu_alpha/mu_beta
+  # simulate a positive correlation for mu_alpha/mu_beta within case categories
+  Sigma <- matrix(
+    c(1.0, .6, .6, 1.5),
+    nrow = 2
+  )
+  # Simulate a set two sets of alpha and beta - one centered at -1 and one centered at +1
+  # (I do not want most alpha/betas to be near 0, or the every group will have similar case outcomes)
+  mu_ab_matrix <- draw_mu_ab(
+    vcov_matrix = Sigma,
+    mu_alpha = 1,
+    mu_beta = 1.75,
+    n_case_types = n_case_types
+  )
 
   case_params <- data.frame(
     type = 1:n_case_types,
@@ -227,7 +236,29 @@ theta_ij_standardize <- function(theta_vector) {
   return(theta_standardized)
 }
 
+draw_mu_ab <- function(vcov_matrix, mu_alpha, mu_beta, n_case_types) {
+  # Mean vector for the first component (positive beta)
+  mu1 <- c(mu_alpha, mu_beta)
+  # Mean vector for the second component (negative beta)
+  mu2 <- c(mu_alpha, mu_beta * -1)
 
+  # 2. Simulate from each component
+  n_half <- round(n_case_types / 2)
+
+  # Draw samples for the first half of case types
+  group1_params <- MASS::mvrnorm(n = n_half, mu = mu1, Sigma = vcov_matrix)
+
+  # Draw samples for the second half of case types
+  group2_params <- MASS::mvrnorm(
+    n = n_case_types - n_half,
+    mu = mu2,
+    Sigma = vcov_matrix
+  )
+
+  # Combine the results and format the data frame
+  mu_ab_matrix <- rbind(group1_params, group2_params)
+  return(mu_ab_matrix)
+}
 ## simulate judges and cases
 draw_case <- function(thetas, mu_beta, mu_alpha, sigma_alpha, sigma_beta) {
   alpha <- rnorm(1, mu_alpha, sigma_alpha)
