@@ -66,8 +66,8 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 500,
-    iter_sampling = 500,
+    iter_warmup = 10,
+    iter_sampling = 10,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
@@ -88,11 +88,26 @@ list(
   ),
   # RSP
   tar_target(
-    identified_draws_array,
+    identified_draws_array_1,
     identify_chains(
       post_array = mcmc_draws_array,
       param_hat = mu_theta[i],
       sign_d = -1
+    )
+  ),
+  tar_target(
+    identified_draws_array_2,
+    identify_chains(
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i],
+      sign_d = 1
+    )
+  ),
+  tar_target(
+    identified_draws_array_3,
+    identify_draws(
+      post_array = mcmc_draws_array,
+      param_hat = mu_theta[i]
     )
   ),
   # trace plots
@@ -106,7 +121,7 @@ list(
   tar_target(
     id_trace_plots,
     bayesplot::mcmc_trace(
-      identified_draws_array,
+      identified_draws_array_1,
       pars = paste0("mu_theta[", 1:20, "]")
     )
   ),
@@ -135,20 +150,60 @@ list(
     }
   ),
   tar_target(
-    reshaped_id,
+    reshaped_id_1,
     reshape_posterior(
-      post_array = identified_draws_array,
+      post_array = identified_draws_array_1,
       param_hat = mu_theta[i],
       order = mcmc_data[[c(".join_data", "g")]]
     )
   ),
-  tar_target(id_validation_plot, {
+  tar_target(id_validation_plot_1, {
     # reorder data frame of judge info to match model order
     mcmc_data
     judge_order <- unique(mcmc_data[["ii"]])
     dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
     validation_plot(
-      data = reshaped_id,
+      data = reshaped_id_1,
+      id = id,
+      param = mu_theta_hat,
+      dgp_df = dgp_raw[judge_order, ]
+    )
+  }),
+  tar_target(
+    reshaped_id_2,
+    reshape_posterior(
+      post_array = identified_draws_array_2,
+      param_hat = mu_theta[i],
+      order = mcmc_data[[c(".join_data", "g")]]
+    )
+  ),
+  tar_target(id_validation_plot_2, {
+    # reorder data frame of judge info to match model order
+    mcmc_data
+    judge_order <- unique(mcmc_data[["ii"]])
+    dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
+    validation_plot(
+      data = reshaped_id_2,
+      id = id,
+      param = mu_theta_hat,
+      dgp_df = dgp_raw[judge_order, ]
+    )
+  }),
+  tar_target(
+    reshaped_id_3,
+    reshape_posterior(
+      post_array = identified_draws_array_3,
+      param_hat = mu_theta[i],
+      order = mcmc_data[[c(".join_data", "g")]]
+    )
+  ),
+  tar_target(id_validation_plot_3, {
+    # reorder data frame of judge info to match model order
+    mcmc_data
+    judge_order <- unique(mcmc_data[["ii"]])
+    dgp_raw <- mcmc_data[[c(".join_data", "theta_df")]]
+    validation_plot(
+      data = reshaped_id_3,
       id = id,
       param = mu_theta_hat,
       dgp_df = dgp_raw[judge_order, ]
