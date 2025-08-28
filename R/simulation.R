@@ -46,7 +46,7 @@ simulate_data <- function(
   gamma_r <- simulate_gamma(
     x_r[,],
     knots = find_knots(party = year[idx_r], n_knots = n_knots),
-    trend_strength = -4
+    trend_strength = -10
   )
 
   sigma_theta <- rlnorm(1, 0, .25)
@@ -103,17 +103,16 @@ simulate_data <- function(
 
   # Covariance matrix for mu_alpha/mu_beta
   # simulate a positive correlation for mu_alpha/mu_beta within case categories
-  Sigma <- matrix(
-    c(1.0, .6, .6, 1.5),
+  vcov_matrix <- matrix(
+    c(10.0, .6, .6, 10),
     nrow = 2
   )
-  # Simulate a set two sets of alpha and beta - one centered at -1 and one centered at +1
-  # (I do not want most alpha/betas to be near 0, or the every group will have similar case outcomes)
-  mu_ab_matrix <- draw_mu_ab(
-    vcov_matrix = Sigma,
-    mu_alpha = 1,
-    mu_beta = 1.75,
-    n_case_types = n_case_types
+  # Simulate case parameters from a very wide normal distribution
+  # (I do not want most alpha/betas to be near 0, or then every group will have similar case outcomes)
+  mu_ab_matrix <- MASS::mvrnorm(
+    n = n_case_types,
+    mu = c(0, 0),
+    Sigma = vcov_matrix
   )
 
   case_params <- data.frame(
@@ -240,7 +239,7 @@ draw_mu_ab <- function(vcov_matrix, mu_alpha, mu_beta, n_case_types) {
   # Mean vector for the first component (positive beta)
   mu1 <- c(mu_alpha, mu_beta)
   # Mean vector for the second component (negative beta)
-  mu2 <- c(mu_alpha, mu_beta * -1)
+  mu2 <- c(mu_alpha * 1, mu_beta * -1)
 
   # 2. Simulate from each component
   n_half <- round(n_case_types / 2)
