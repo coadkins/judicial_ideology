@@ -51,9 +51,9 @@ transformed parameters {
   for (b in 1 : B) {
     int start = type_start[b];
     int end = type_end[b];
-    alpha[cases_by_type[start : end]] = mu_alpha[b]
-                                        + sigma_alpha
-                                          * alpha_raw[cases_by_type[start : end]];
+    alpha_nc[cases_by_type[start : end]] = mu_alpha[b]
+                                           + sigma_alpha
+                                             * alpha_raw[cases_by_type[start : end]];
     beta_nc[cases_by_type[start : end]] = mu_beta[b]
                                           + sigma_beta
                                             * beta_raw[cases_by_type[start : end]];
