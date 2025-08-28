@@ -20,7 +20,7 @@ tar_option_set(
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
-  controller = crew::crew_controller_local(workers = 5),
+  controller = crew::crew_controller_local(workers = 2),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
@@ -71,7 +71,7 @@ list(
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
-    stderr = R.utils::nullfile(),
+    stderr = here("errors.txt"),
     return_summary = FALSE
   ),
   # format results as a posterior package draws_array
