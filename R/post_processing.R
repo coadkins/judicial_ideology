@@ -2,7 +2,7 @@
 ################### FUNCTIONS RELATED TO POST-PROCESSING MCMC DRAWS ###########
 ###############################################################################
 validation_plot <- function(data, id, param, dgp_df) {
-  ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
+  ggplot2::ggplot(data, ggplot2::aes(x = {{ id }}, y = {{ param }})) +
     ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
     ggplot2::geom_boxplot(
       ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
@@ -17,7 +17,6 @@ validation_plot <- function(data, id, param, dgp_df) {
     ggplot2::xlab(NULL) +
     ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
 }
-
 
 reshape_posterior <- function(
   post_array,
