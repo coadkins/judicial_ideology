@@ -63,7 +63,7 @@ identify_chains <- function(
       mean_p = mean(!!value_hat_col),
       flip = sign(mean_p) * sign(sign_d) < 0,
       !!value_hat_col := case_when(
-        flip == TRUE ~ -1 * !!value_hat_col,
+        flip == TRUE ~ sign_d * !!value_hat_col,
         .default = !!value_hat_col
       )
     ) |>
