@@ -104,11 +104,10 @@ simulate_data <- function(
   # Covariance matrix for mu_alpha/mu_beta
   # simulate a positive correlation for mu_alpha/mu_beta within case categories
   vcov_matrix <- matrix(
-    c(10.0, .6, .6, 10),
+    c(1.0, .6, .6, 1),
     nrow = 2
   )
   # Simulate case parameters from a very wide normal distribution
-  # (I do not want most alpha/betas to be near 0, or then every group will have similar case outcomes)
   mu_ab_matrix <- MASS::mvrnorm(
     n = n_case_types,
     mu = c(0, 0),
