@@ -19,34 +19,71 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
+  n_knots <- 3
   ## derived quantities
-  knots <- find_knots(party, n_knots = 5)
-  x <- splines::bs(
-    year,
-    knots = knots,
+  idx_d <- which(party == 0)
+  idx_r <- which(party == 1)
+
+  # design matrices for republican and democrat appointed covariates
+  x_d <- splines::ns(
+    year[idx_d],
+    knots = find_knots(party = year[idx_d], n_knots = n_knots),
     intercept = TRUE
   )
-  gamma_sim <- simulate_gamma(x, knots, party)
+
+  x_r <- splines::ns(
+    year[idx_r],
+    knots = find_knots(party = year[idx_r], n_knots = n_knots),
+    intercept = TRUE
+  )
+  # simulate gamma for those cohorts
+  gamma_d <- simulate_gamma(
+    x_d[,],
+    knots = find_knots(party = year[idx_d], n_knots = n_knots),
+    trend_strength = -.5
+  )
+
+  gamma_r <- simulate_gamma(
+    x_r[,],
+    knots = find_knots(party = year[idx_r], n_knots = n_knots),
+    trend_strength = -10
+  )
 
   sigma_theta <- rlnorm(1, 0, .25)
-  # vectorize draw_theta_ij() over rows of x
-  theta_raw_list <- apply(
-    x,
+  # vectorize draw_theta_ij() over each row of the design matrix
+  ## draw for dems
+  theta_raw_list <- list()
+  theta_raw_list[idx_d] <- apply(
+    x_d[,],
+    MARGIN = 1,
+    \(x) {
+      draw_theta_ij_raw(
+        x,
+        n = judge_gi,
+        gamma = gamma_d,
+        sigma_theta = sigma_theta
+      )
+    },
+    simplify = FALSE
+  )
+  ## draw for reps.
+  theta_raw_list[idx_r] <- apply(
+    x_r[,],
     MARGIN = 1,
     \(x) {
       draw_theta_ij_raw(
         x = x,
-        n = n_judge / n_cohort,
-        gamma = gamma_sim,
+        n = judge_gi,
+        gamma = gamma_r,
         sigma_theta = sigma_theta
       )
     },
     simplify = FALSE
   )
 
-  # reference group center the raw simulated theta
-  theta_reference <- theta_raw_list[[1]]
-  theta_vector <- (do.call(c, theta_raw_list) - mean(theta_reference))
+  # standardize theta
+  theta_vector <- do.call(c, theta_raw_list)
+  theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
@@ -54,7 +91,7 @@ simulate_data <- function(
     dplyr::mutate(
       judge_id = 1:length(theta_vector),
       year = factor(
-        rep(1:n_cohort, each = n_judge / n_cohort)
+        rep(1:n_cohort, each = judge_gi)
       )
     ) |>
     dplyr::left_join(
@@ -64,11 +101,18 @@ simulate_data <- function(
 
   colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 
-  # Sample covariance matrix from Inverse Wishart
-  Sigma <- MCMCpack::riwish(v = 3, S = diag(2))
-
-  # Sample bivariate normal for each case type
-  mu_ab_matrix <- MASS::mvrnorm(n = n_case_types, mu = c(0, 0), Sigma = Sigma)
+  # Covariance matrix for mu_alpha/mu_beta
+  # simulate a positive correlation for mu_alpha/mu_beta within case categories
+  vcov_matrix <- matrix(
+    c(1.0, .6, .6, 1),
+    nrow = 2
+  )
+  # Simulate case parameters from a very wide normal distribution
+  mu_ab_matrix <- MASS::mvrnorm(
+    n = n_case_types,
+    mu = c(0, 0),
+    Sigma = vcov_matrix
+  )
 
   case_params <- data.frame(
     type = 1:n_case_types,
@@ -105,11 +149,17 @@ simulate_data <- function(
     B = length(unique(cases_df$case_type)),
     N_judge = length(unique(cases_df$judge_id)),
     G = length(unique(cases_df[, "year"])),
-    K = ncol(x),
+    K_d = ncol(x_d),
+    K_r = ncol(x_r),
     outcome = with(cases_df, outcome[order(case_id)]),
     ii = with(cases_df, judge_id[order(case_id)]), # judge for each obs.
     jj = with(cases_df, case_id[order(case_id)]), # case for each obs.
-    x = x,
+    x_d = x_d,
+    x_r = x_r,
+    idx_d = idx_d,
+    idx_r = idx_r,
+    N_d = length(idx_d),
+    N_r = length(idx_r),
     # .join_data is returned in "mcmc_data" and is useful for post-processing
     .join_data = list(
       mu_theta = dplyr::pull(judge_covariates, mu_theta),
@@ -137,7 +187,10 @@ simulate_data <- function(
   # Append additional data to facilitate identifcation
   stan_data <- append(
     stan_data,
-    list(mu_theta_ref_group = 1),
+    list(
+      mu_case_pos_idx = which(case_params[, 2] == max(case_params[, 2])),
+      mu_case_neg_idx = which(case_params[, 2] == min(case_params[, 2]))
+    ),
   )
   return(stan_data)
 }
@@ -145,54 +198,23 @@ simulate_data <- function(
 simulate_gamma <- function(
   x,
   knots,
-  party,
-  trend_strength = -2,
-  shift_0_to_1 = -5,
-  shift_1_to_0 = .5
+  trend_strength = -2
 ) {
-  # construct matrix of gamma parameters consistent with my theory
-  # need to use a basis spline to avoid multicollinearity in linear model
-  # Initialize coefficients
   n_basis <- ncol(x)
-  gamma <- matrix(NA, ncol = n_basis, nrow = 1)
-
-  # Set intercept
-  gamma[, 1] <- 0 # starting point
+  gamma <- matrix(NA, nrow = 1, ncol = ncol(x))
 
   # Add negative trend over time for non-intercept terms
-  basis_weights <- seq(0, trend_strength, length.out = n_basis - 1)
-  gamma[, -1] <- basis_weights
-
-  # Identify knot types and add shifts
-  # Because each knot is influenced by multiple asis functions
-  # this loop iteratively updates the knot coefficients
-
+  basis_weights <- seq(0, trend_strength, length.out = n_basis)
+  gamma[1, ] <- basis_weights
+  # add some noise at the knots
   for (i in seq_along(knots)) {
     knot_pos <- knots[i]
-
-    # Determine if this is a 0->1 or 1->0 transition
-    if (knot_pos > 1 && knot_pos <= length(party)) {
-      transition_type <- if (party[knot_pos - 1] == 0 && party[knot_pos] == 1) {
-        "0_to_1"
-      } else if (party[knot_pos - 1] == 1 && party[knot_pos] == 0) {
-        "1_to_0"
-      } else {
-        "other"
-      }
-
-      # Find which basis functions are most active around this knot
-      # and adjust their coefficients (non active knots are 0)
-      knot_influence <- x[knot_pos, ]
-      knot_influence[1] <- 0 # don't modify intercept
-
-      if (transition_type == "0_to_1") {
-        # Shift towards negative
-        gamma[1, ] <- gamma[1, ] + shift_0_to_1 * knot_influence
-      } else if (transition_type == "1_to_0") {
-        # Shift towards positive
-        gamma[1, ] <- gamma[1, ] + shift_1_to_0 * knot_influence
-      }
-    }
+    # find which basis functions are most active around this knot
+    # other functions are equal to 0 and will drop out
+    knot_influence <- x[knot_pos, ]
+    # dont change the intercep
+    knot_influence[1] <- 0
+    gamma[1, ] <- gamma[1, ] + rnorm(1, 0, 1) * knot_influence
   }
   return(gamma)
 }
@@ -211,7 +233,29 @@ theta_ij_standardize <- function(theta_vector) {
   return(theta_standardized)
 }
 
+draw_mu_ab <- function(vcov_matrix, mu_alpha, mu_beta, n_case_types) {
+  # Mean vector for the first component (positive beta)
+  mu1 <- c(mu_alpha, mu_beta)
+  # Mean vector for the second component (negative beta)
+  mu2 <- c(mu_alpha * 1, mu_beta * -1)
 
+  # 2. Simulate from each component
+  n_half <- round(n_case_types / 2)
+
+  # Draw samples for the first half of case types
+  group1_params <- MASS::mvrnorm(n = n_half, mu = mu1, Sigma = vcov_matrix)
+
+  # Draw samples for the second half of case types
+  group2_params <- MASS::mvrnorm(
+    n = n_case_types - n_half,
+    mu = mu2,
+    Sigma = vcov_matrix
+  )
+
+  # Combine the results and format the data frame
+  mu_ab_matrix <- rbind(group1_params, group2_params)
+  return(mu_ab_matrix)
+}
 ## simulate judges and cases
 draw_case <- function(thetas, mu_beta, mu_alpha, sigma_alpha, sigma_beta) {
   alpha <- rnorm(1, mu_alpha, sigma_alpha)
@@ -326,20 +370,13 @@ fix_judge_idx <- function(df, x, y, target) {
 #' and the third element is a vector of group end indices
 #'
 find_knots <- function(party, n_knots) {
-  # Compare each element with the next one
-  candidate_knots <- party[-length(party)] != party[-1]
-  # Get indices where transitions occur
-  candidate_knots <- which(candidate_knots)
-
-  if (length(candidate_knots) <= n_knots) {
-    return(candidate_knots)
+  if (length(party) <= n_knots) {
+    knots <- 1:length(party)
+  } else {
+    # evenly space knots
+    knots <- round(seq(1, length(party), length.out = n_knots))
   }
-
-  # Select evenly spaced knots from candidatesk
-  indices <- round(seq(1, length(candidate_knots), length.out = n_knots))
-  selected_knots <- candidate_knots[indices]
-
-  return(selected_knots)
+  return(knots)
 }
 
 visualize_variation_theta <- function(dgp_df) {

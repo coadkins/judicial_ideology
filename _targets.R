@@ -108,11 +108,17 @@ list(
   tar_target(
     mcmc_prediction_draws,
     {
-      # Extract y_hat directly as matrix - much faster
-      mcmc_mcmc_hirt.hom$draws(
+      y_hat_draws <- mcmc_draws_hirt.hom$draws(
         variables = "y_hat",
-        format = "matrix"
+        format = "draws_df"
       )
+      prediction_draws <- tidybayes::spread_draws(
+        y_hat_draws,
+        y_hat[..]
+      )[,
+        -c(1:3)
+      ] |>
+        as.matrix()
     }
   ),
   ## output ppc plot
