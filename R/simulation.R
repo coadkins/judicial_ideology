@@ -19,14 +19,33 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
+  n_knots <- 3
   ## derived quantities
-  knots <- find_knots(party, n_knots = 5)
-  x <- splines::bs(
-    year,
-    knots = knots,
+  idx_d <- which(party == 0) 
+  idx_r <- which(party == 1)
+
+  # design matrices for republican and democrat appointed covariates
+  x_d <- splines::ns(
+    year[idx_d],
+    knots = find_knots(party = year[idx_d], n_knots = n_knots),
     intercept = TRUE
   )
-  gamma_sim <- simulate_gamma(x, knots, party)
+
+  x_r <- splines::ns(
+    year[idx_r],
+    knots = find_knots(party = year[idx_r], n_knots = n_knots)
+    intercept = TRUE
+  )
+  # simulate gamma for those cohorts
+  gamma_d <- simulate_gamma(x_d, 
+  knots = find_knots(party = year[idx_r], n_knots = n_knots),
+  trend_strength = -2
+)
+
+  gamma_d <- simulate_gamma(x_d, 
+  knots = find_knots(party = year[idx_r], n_knots = n_knots),
+  trend_strength = -4
+)
 
   sigma_theta <- rlnorm(1, 0, .25)
   # vectorize draw_theta_ij() over party and year
@@ -110,7 +129,10 @@ simulate_data <- function(
     outcome = with(cases_df, outcome[order(case_id)]),
     ii = with(cases_df, judge_id[order(case_id)]), # judge for each obs.
     jj = with(cases_df, case_id[order(case_id)]), # case for each obs.
-    x = x,
+    x_d = x_d,
+    x_r = x_r,
+    idx_d = idx_d,
+    idx_r = idx_r
     # .join_data is returned in "mcmc_data" and is useful for post-processing
     .join_data = list(
       mu_theta = dplyr::pull(judge_covariates, mu_theta),
@@ -146,34 +168,10 @@ simulate_data <- function(
 simulate_gamma <- function(
   x,
   knots,
-  party,
-  trend_strength = -2,
-  shift_0_to_1 = -5,
-  shift_1_to_0 = .5
+  trend_strength = -2
 ) {
-  # construct matrix of gamma parameters consistent with my theory
-  # this is onerous beceause year is "one-hot encoded"
-  x <- model.matrix(~ 1 + party + year + party * year)
-  year_cols <- grep("^year\\d+$", colnames(x))
-  party_year_cols <- grep("^party:year\\d+$", colnames(x))
-  dem_years <- which(party == 0 & seq_along(party) != 1)
-  gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
-  gamma[, 1] <- 0 # intercept
-  gamma[, 2] <- (-1) # gamma for party
-  gamma[, year_cols] <- seq(
-    from = -.2,
-    by = -.1,
-    length.out = length(year_cols)
-  ) # gamma for each year (theta1)
-  # gamma for each party*year(theta)
-  gamma[, party_year_cols[-dem_years]] <- seq(
-    from = -.2,
-    by = -.4, # reps.
-    length.out = length(party_year_cols[-dem_years])
-  )
-  gamma[, party_year_cols[dem_years]] <-
-    rep(0, length(party_year_cols[dem_years]))
-  return(gamma)
+gamma <- matrix(NA, nrow = 1, ncol = ncol(x))
+
 }
 
 draw_theta_ij_raw <- function(n, party, year, gamma, sigma_theta) {
@@ -307,20 +305,13 @@ fix_judge_idx <- function(df, x, y, target) {
 #' and the third element is a vector of group end indices
 #'
 find_knots <- function(party, n_knots) {
-  # Compare each element with the next one
-  candidate_knots <- party[-length(party)] != party[-1]
-  # Get indices where transitions occur
-  candidate_knots <- which(candidate_knots)
-
-  if (length(candidate_knots) <= n_knots) {
-    return(candidate_knots)
+  if (party) <= n_knots) {
+    knots <- 1:length(party)
+  } else {
+  # evenly space knots
+  knots <- round(seq(1, length(candidate_knots), length.out = n_knots))
   }
-
-  # Select evenly spaced knots from candidatesk
-  indices <- round(seq(1, length(candidate_knots), length.out = n_knots))
-  selected_knots <- candidate_knots[indices]
-
-  return(selected_knots)
+  return(knots)
 }
 
 visualize_variation_theta <- function(dgp_df) {
