@@ -10,8 +10,9 @@ data {
   array[N] int<lower=1, upper=N_case_id> jj; //tracks case for obs. n
   matrix[G, K] x; // party, cohort and intercept to model group mean
   // These data structures facilitate identification by creating 
-  // constraints on mu_theta, gammma and mu_beta
-  int<lower=1, upper=G> mu_theta_ref_group;
+  // constraints on mu_theta, mu_beta
+  int<lower=1> mu_case_pos_idx;
+  int<lower=1> mu_case_neg_idx;
   // I use these data structures to mimic ragged arrays of judges and cases
   // This allows me to vectorize sampling within groups, which is much
   // faster than looping across all judges and individuals
@@ -31,9 +32,9 @@ parameters {
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
-  // mu_alpha and mu_beta sampled from bivariate normal
-  matrix[B, 2] mu_ab_raw; // raw parameters for bivariate normal
-  cov_matrix[2] Sigma; // covariance matrix for bivariate normal
+  // mu_alpha and mu_beta sampled from bivariate normal distribution
+  matrix[B, 2] mu_ab; // mu_alpha and mu_beta for each case category
+  cov_matrix[2] Sigma; // covariance matrix for sampling mu_alpha/mu_beta 
   real<lower=0> sigma_beta;
   real<lower=0> sigma_alpha;
   ordered[2] c; // cutpoints
@@ -97,7 +98,15 @@ model {
   // Priors for case-specific parameters
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
-    mu_ab_raw[b,  : ] ~ multi_normal([0, 0], Sigma);
+    if (b == mu_case_pos_idx) {
+      mu_ab[b, 1] ~ normal(0, Sigma[1, 1]);
+      mu_ab[b, 2] ~ normal(.5, 1) T[0, ];
+    } else if (b == mu_case_neg_idx) {
+      mu_ab[b, 1] ~ normal(0, Sigma[1, 1]);
+      mu_ab[b, 2] ~ normal(.5, 1) T[ , 0];
+    } else {
+      mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
+    }
   }
   // Inverse Wishart prior for covariance matrix
   Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
