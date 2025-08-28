@@ -104,7 +104,7 @@ simulate_data <- function(
   # Covariance matrix for mu_alpha/mu_beta
   # simulate a positive correlation for mu_alpha/mu_beta within case categories
   vcov_matrix <- matrix(
-    c(1.0, .6, .6, 1),
+    c(1.0, 0, 0, 1),
     nrow = 2
   )
   # Simulate case parameters from a very wide normal distribution
@@ -143,23 +143,24 @@ simulate_data <- function(
       with(cases_df, cases_df[!duplicated(year), "year"]) |>
         as.numeric()
     )
+
+  x <- splines::ns(
+    year,
+    intercept = TRUE
+  )
+
   stan_data <- list(
     N = nrow(cases_df),
     N_case_id = length(unique(cases_df$case_id)),
     B = length(unique(cases_df$case_type)),
     N_judge = length(unique(cases_df$judge_id)),
     G = length(unique(cases_df[, "year"])),
-    K_d = ncol(x_d),
-    K_r = ncol(x_r),
+    K = ncol(x[,]),
     outcome = with(cases_df, outcome[order(case_id)]),
     ii = with(cases_df, judge_id[order(case_id)]), # judge for each obs.
     jj = with(cases_df, case_id[order(case_id)]), # case for each obs.
-    x_d = x_d,
-    x_r = x_r,
-    idx_d = idx_d,
-    idx_r = idx_r,
-    N_d = length(idx_d),
-    N_r = length(idx_r),
+    x = x[,],
+    mu_theta_ref_group = 1,
     # .join_data is returned in "mcmc_data" and is useful for post-processing
     .join_data = list(
       mu_theta = dplyr::pull(judge_covariates, mu_theta),

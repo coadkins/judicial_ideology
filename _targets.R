@@ -20,7 +20,7 @@ tar_option_set(
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
-  controller = crew::crew_controller_local(workers = 5),
+  controller = crew::crew_controller_local(workers = 4),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
