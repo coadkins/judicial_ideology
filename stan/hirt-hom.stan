@@ -35,8 +35,9 @@ parameters {
   vector[N_judge] theta_raw;
   real<lower=0> mu_sigma_theta; // std. deviation of group means from grand mean
   real<lower=0> sigma_theta; // homoskedastic variance for all groups of judges
-  vector[K_d] gamma_d; // predicts mu_theta dem 
-  vector[K_r] gamma_r; // predicts mu_theta rep
+  real gamma_int; // reference group for mu_theta
+  vector[K_d - 1] gamma_d; // predicts mu_theta dem 
+  vector[K_r - 1] gamma_r; // predicts mu_theta rep
   // other parameters
   vector[N_case_id] alpha_raw; // intercept for each case
   vector[N_case_id] beta_raw; // discrimination score
@@ -73,10 +74,12 @@ transformed parameters {
   vector[G] mu_theta;
   vector[N_d] mu_theta_dem;
   vector[N_r] mu_theta_rep;
-  // reference group
+  // add reference group for each party
+  vector[K_d] gamma_dem = append_row(gamma_int, gamma_d);
+  vector[K_r] gamma_rep = append_row(gamma_int, gamma_r);
   // calculate mean ability for each group
-  mu_theta[idx_d] = x_d * gamma_d;
-  mu_theta[idx_r] = x_r * gamma_r;
+  mu_theta[idx_d] = x_d * gamma_dem;
+  mu_theta[idx_r] = x_r * gamma_rep;
   // Non-centered parameterization for theta
   vector[N_judge] theta_nc;
   // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
@@ -97,6 +100,7 @@ model {
   // prior for theta and related parameters
   theta_raw ~ std_normal();
   sigma_theta ~ lognormal(0, .25);
+  gamma_int ~ normal(0, 0.1);
   gamma_d ~ normal(0, 1);
   gamma_r ~ normal(-1, 1);
   // Priors for case-specific parameters
