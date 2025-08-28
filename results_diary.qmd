@@ -53,4 +53,4 @@ stri_c(
 
 - 2025-08-26-138e7b7c78758219. Model from Git commit 245588c. Identified, but ever poorer performance than the linear models. UPDATE: I accidentally parameterized the spline function using "party" instead of "year" - oops!
 
-- 
+- 2025-08-28-02b10b3f398d266e. 4ed3f5d. This model can be identified using RSP / `identify_chains`, and the results roughly track the relative relationship of the groups scores. Maybe the spline needs more knots? 
