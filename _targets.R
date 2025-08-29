@@ -20,7 +20,6 @@ tar_option_set(
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
-  controller = crew::crew_controller_local(workers = 2),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
@@ -62,16 +61,18 @@ list(
       cohort_g = 20,
       judge_gi = 40,
       case_ij = 40,
-      types_b = 20
+      types_b = 20,
+      cutpoint1 = -2,
+      cutpoint2 = 4
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 1500,
-    iter_sampling = 1500,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),
-    stderr = R.utils::nullfile(),
+    stderr = here("errors.txt"),
     return_summary = FALSE
   ),
   # format results as a posterior package draws_array
@@ -83,7 +84,8 @@ list(
     outcome_distribution,
     visualize_variation_outcome(
       mcmc_data[["outcome"]],
-      mcmc_data[[c(".join_data", "g_ij")]]
+      mcmc_data[[c(".join_data", "g_ij")]],
+      mcmc_data[[c(".join_data", "party")]]
     )
   ),
   # RSP
