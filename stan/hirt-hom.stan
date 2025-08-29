@@ -10,7 +10,7 @@ data {
   array[N] int<lower=1, upper=N_case_id> jj; //tracks case for obs. n
   matrix[G, K] x; // party, cohort and intercept to model group mean
   // These data structures facilitate identification by creating 
-  // constraints on mu_theta, mu_beta
+  // constraints on mu_beta
   int<lower=1> mu_case_pos_idx;
   int<lower=1> mu_case_neg_idx;
   // I use these data structures to mimic ragged arrays of judges and cases
@@ -41,8 +41,8 @@ parameters {
 }
 transformed parameters {
   // Extract mu_alpha and mu_beta from bivariate normal sampling
-  vector[B] mu_alpha = mu_ab_raw[ : , 1];
-  vector[B] mu_beta = mu_ab_raw[ : , 2];
+  vector[B] mu_alpha = mu_ab[ : , 1];
+  vector[B] mu_beta = mu_ab[ : , 2];
   
   // non-centered parametrizaion for case parameters 
   vector[N_case_id] alpha_nc;
@@ -99,16 +99,16 @@ model {
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
     if (b == mu_case_pos_idx) {
-      mu_ab[b, 1] ~ normal(0, Sigma[1, 1]);
-      mu_ab[b, 2] ~ normal(.5, 1) T[0, ];
+      mu_ab[b, 1] ~ normal(0, 5);
+      mu_ab[b, 2] ~ normal(2, .5);
     } else if (b == mu_case_neg_idx) {
-      mu_ab[b, 1] ~ normal(0, Sigma[1, 1]);
-      mu_ab[b, 2] ~ normal(.5, 1) T[ , 0];
+      mu_ab[b, 1] ~ normal(0, 5);
+      mu_ab[b, 2] ~ normal(-2, .5);
     } else {
       mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
     }
   }
-  // Inverse Wishart prior for covariance matrix
+  // Inverse Wishart prior for mu_ab's covariance matrix
   Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
   
   sigma_alpha ~ lognormal(0, .25);
@@ -122,7 +122,6 @@ generated quantities {
   array[N] int<lower=0, upper=1> y_hat;
   for (n in 1 : N) {
     y_hat[n] = ordered_logistic_rng(beta[jj[n]] .* theta[ii[n]]
-                                    + alpha[jj[n]], c)
-               - 2;
+                                    + alpha[jj[n]], c);
   }
 }
