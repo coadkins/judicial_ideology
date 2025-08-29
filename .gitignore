@@ -14,6 +14,7 @@ results/
 venv/
 .Renviron
 notebooks/
+!notebooks/stan_hom_hirt.qmd
 data/
 .cache/
 .config/
