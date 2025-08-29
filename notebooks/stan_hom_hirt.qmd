@@ -73,6 +73,8 @@ $\sigma_{\alpha \beta} \sim \mathcal{W}^{-1} (\mathcal(I), 3)$; an inverse Wisha
 
 $\theta_i*$, $\beta_j*$ and $\alpha_j*$ have standard normal priors.
 
+$\eta$ has a very wide prior of $\mathcal{N} (0, 10)$.
+
 # Validation
 
 I validate the appropriateness of the model using simulated data with the following group and outcome structure:
