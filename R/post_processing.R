@@ -19,10 +19,8 @@ validation_plot <- function(data, id, param, dgp_df) {
     ggplot2::xlab("Judge Cohort ID") +
     ggplot2::ggtitle("Distribution of Mu_Theta Estimates by Cohort") +
     ggplot2::labs(
-      ggplot2::caption(
-        "The colored boxplots depict the middle two quantiles of the \'true\' distribution of theta. \n
-  The gray boxplots show the distribution of estimates for mu_theta for each group"
-      )
+      caption = "The colored boxplots depict the middle two quantiles of the \'true\' distribution of theta. \n
+  The gray boxplots show the distribution of estimates for mu_theta for each group."
     )
 }
 
