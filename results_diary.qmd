@@ -23,16 +23,42 @@ plot <- tar_read(mcmc_trace_plots)
 print(plot)
 ```
 
-```{r}
-#| label: ppc-plot
-plot <- tar_read(mcmc_ppc_plot)
-print(plot)
-```
 
 ```{r}
 #| label: validation-plot
 plot2 <- tar_read(mcmc_validation_plot)
 print(plot2)
+```
+
+```{r}
+#| label: trace plots after RSP
+```
+
+```{r}
+#| label: validation plots after RSP
+plot4 <- tar_read(id_validation_plot_1)
+plot4
+```
+
+```{r}
+# label: trace plots with alt RSP
+```
+
+```{r}
+# label: validation plots with alt RSP
+plot6 <- tar_read(id_validation_plot_2)
+plot6
+```
+
+```{r}
+# label: trace plots with sign id
+
+```
+
+```{r}
+# label: validation plots with sign id
+plot8 <- tar_read(id_validation_plot_3)
+plot8
 ```
 
 # Comments
@@ -50,7 +76,3 @@ stri_c(
   collapse = "-"
 )
 ```
-
-- 2025-08-26-138e7b7c78758219. Model from Git commit 245588c. Identified, but ever poorer performance than the linear models. UPDATE: I accidentally parameterized the spline function using "party" instead of "year" - oops!
-
-- 2025-08-28-02b10b3f398d266e. 4ed3f5d. This model can be identified using RSP / `identify_chains`, and the results roughly track the relative relationship of the groups scores. Maybe the spline needs more knots? 
