@@ -5,7 +5,7 @@ data {
   int<lower=1> N_judge;
   int<lower=1> G; // number of groups
   int<lower=1> K; // number of covariates to model group mean
-  array[N] int<lower=0, upper=1> outcome; // binomial outcome (judge votes)
+  array[N] int<lower=1, upper=3> outcome; // ordered outcome (judge votes)
   array[N] int<lower=1, upper=N_judge> ii; //tracks judge for obs. n
   array[N] int<lower=1, upper=N_case_id> jj; //tracks case for obs. n
   matrix[G, K] x; // party, cohort and intercept to model group mean
@@ -36,6 +36,7 @@ parameters {
   cov_matrix[2] Sigma; // covariance matrix for bivariate normal
   real<lower=0> sigma_beta;
   real<lower=0> sigma_alpha;
+  ordered[2] c; // cutpoints
 }
 transformed parameters {
   // Extract mu_alpha and mu_beta from bivariate normal sampling
@@ -91,6 +92,8 @@ model {
   sigma_theta ~ lognormal(0, .25);
   gamma_int ~ normal(0, .01); // soft constraint on reference group
   gamma_free ~ normal(0, 1);
+  
+  c ~ normal(0, 5);
   // Priors for case-specific parameters
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
@@ -104,9 +107,13 @@ model {
   alpha_raw ~ std_normal();
   beta_raw ~ std_normal();
   // sample likelihood 
-  outcome ~ bernoulli_logit(beta[jj] .* theta[ii] + alpha[jj]);
+  outcome ~ ordered_logistic(beta[jj] .* theta[ii] + alpha[jj], c);
 }
 generated quantities {
   array[N] int<lower=0, upper=1> y_hat;
-  y_hat = bernoulli_rng(inv_logit((beta[jj] .* theta[ii] + alpha[jj])));
+  for (n in 1 : N) {
+    y_hat[n] = ordered_logistic_rng(beta[jj[n]] .* theta[ii[n]]
+                                    + alpha[jj[n]], c)
+               - 2;
+  }
 }

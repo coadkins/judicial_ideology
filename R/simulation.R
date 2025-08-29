@@ -6,7 +6,9 @@ simulate_data <- function(
   cohort_g = 20,
   judge_gi = 50,
   case_ij = 50,
-  types_b = 50
+  types_b = 50,
+  cutpoint1 = -0.5,
+  cutpoint2 = 0.5
 ) {
   # simulate data
   set.seed(02474)
@@ -130,7 +132,9 @@ simulate_data <- function(
       theta_df = theta_df,
       mu_case_df = case_params,
       sigma_alpha = sigma_alpha,
-      sigma_beta = sigma_beta
+      sigma_beta = sigma_beta,
+      cutpoint1 = cutpoint1,
+      cutpoint2 = cutpoint2
     )
   ) |>
     purrr::list_rbind()
@@ -259,12 +263,19 @@ draw_mu_ab <- function(vcov_matrix, mu_alpha, mu_beta, n_case_types) {
   return(mu_ab_matrix)
 }
 ## simulate judges and cases
-draw_case <- function(thetas, mu_beta, mu_alpha, sigma_alpha, sigma_beta) {
+draw_case <- function(
+  thetas,
+  mu_beta,
+  mu_alpha,
+  sigma_alpha,
+  sigma_beta,
+  cutpoint1,
+  cutpoint2
+) {
   alpha <- rnorm(1, mu_alpha, sigma_alpha)
   beta <- rnorm(1, mu_beta, sigma_beta)
-  linear_func <- alpha + t(beta) * thetas
-  link_func <- 1 / (1 + exp(-(linear_func)))
-  y_out <- rbinom(prob = link_func, n = 1, size = 1)
+  linear_func <- alpha + beta * thetas
+  y_out <- ordered_logit(linear_func, cutpoint1, cutpoint2)
   return(y_out)
 }
 
@@ -274,11 +285,14 @@ draw_panel <- function(
   mu_case_df,
   case_type,
   sigma_alpha,
-  sigma_beta
+  sigma_beta,
+  cutpoint1 = -0.5,
+  cutpoint2 = 0.5
 ) {
   panel <- theta_df[sample(1:nrow(theta_df), size = 3), ] # 3 judges per panel
   thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
   mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ]) # 1 case type per panel
+
   case <- apply(
     thetas,
     MARGIN = 1,
@@ -286,12 +300,26 @@ draw_panel <- function(
     mu_beta = with(mu_case_df, mu_case_df[type == case_type, "mu_beta"]),
     mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"]),
     sigma_alpha = sigma_alpha,
-    sigma_beta = sigma_beta
+    sigma_beta = sigma_beta,
+    cutpoint1 = cutpoint1,
+    cutpoint2 = cutpoint2
   )
   panel$outcome <- case
   panel$case_id <- case_id
   panel$case_type <- mu_case_df[, "type"]
   return(panel)
+}
+
+ordered_logit <- function(x, cutpoint1, cutpoint2) {
+  y_out <- NA
+  if (x <= cutpoint1) {
+    y_out <- 1
+  } else if (x > cutpoint1 & x <= cutpoint2) {
+    y_out <- 2
+  } else {
+    y_out <- 3
+  }
+  return(y_out)
 }
 
 gen_group_idx <- function(
@@ -414,10 +442,16 @@ validation_plot <- function(data, id, param, dgp_df) {
     ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
 }
 
-visualize_variation_outcome <- function(outcome, g_ij) {
-  data <- tibble::tibble(outcome = outcome, groups = g_ij)
-  ggplot2::ggplot(data, ggplot2::aes(x = outcome)) +
-    ggplot2::geom_bar(fill = "steelblue", alpha = 0.7) +
+visualize_variation_outcome <- function(outcome, g_ij, party) {
+  party_df <- tibble::tibble(
+    groups = as.factor(seq.int(party)),
+    party = as.factor(party)
+  )
+  data <- tibble::tibble(outcome = outcome, groups = g_ij) |>
+    dplyr::left_join(party_df, by = "groups")
+  ggplot2::ggplot(data, ggplot2::aes(x = outcome, fill = party)) +
+    ggplot2::geom_bar(alpha = 0.7) +
+    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
     ggplot2::facet_wrap(~groups, ncol = 5) +
     ggplot2::labs(
       title = "Outcomes by Cohort",
