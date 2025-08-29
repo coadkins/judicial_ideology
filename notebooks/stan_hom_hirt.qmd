@@ -12,13 +12,29 @@ This model tries to estimate appellate judges' ideological scores from their vot
 The parameterization is discussed in more detail below:
 
 # Model of case outcomes:
-$$\mathrm{Pr}(Y_{ij} = h) = \Psi^{-1}(\alpha_j + \beta_j^\intercal \theta_i^*)\text{ for }h = 0,1$$
+This is an ordinal logistic regression, where the linar predictor takes the form:
+$$(eta_{ij} = \alpha_j + \beta_j^\intercal \theta_i^*)$$
 
-- $Y_{ij}$ is the binomial outcome 0 or 1 for judge $i$ hearing case $j$.
-- $\Psi^{-1}$ is the inverse logit function.
-- $\alpha_j$ is the case-specific "difficulty" parameter.
-- $\beta_j$ is the case-specific "discrimination" parameter. Because of the multidimensional latent space, $\beta_j$ is modeled with $\mathcal{D}$ dimensions.
+- $\alpha_j$ is the case-specific "difficulty" parameter. We can think of this as the how likely a Republican judge is to vote for the defendant
+- $\beta_j$ is the case-specific "discrimination" parameter. 
 - $\theta_i$ is the judge-specific "ability" parameter in my case, this is the ideology score. 
+
+- The link function is an "Ordinal Logistic" Function with 2 cutpoints corresponding to three possible ordered outcomes.
+
+$$
+\text{OrderedLogistic}(k | \eta_ij, c) =
+\begin{cases}
+    1 - \text{logit}^{-1}(\eta - c_1) & \text{if } k = 1, \\
+    \text{logit}^{-1}(\eta - c_1) - \text{logit}^{-1}(\eta - c_2) & \text{if } k = 2, \\
+    \text{logit}^{-1}(\eta - c_2) - \text{logit}^{-1}(\eta - c_3) & \text{if } k = 3, \\
+    \text{logit}^{-1}(\eta - c_3) & \text{if } k = 4.
+\end{cases}
+$$
+
+- $Y_{ij}$ is the ordered outcome ranging from 1 to 3 for judge $i$ hearing case $j$. This corresponds to "defendant victory", "settlement" and "plaintiff victory", respectively. 
+
+
+
 
 # Model of Ideology Scores (Judge Level Parameters):
 
@@ -90,6 +106,8 @@ In one MCMC run, the group level estimates track the direction of the true distr
 After RSP, the trace plots suggest that the model is well identified:
 
 --- insert plot ---
+
+As a check, I have implemented a simplified version of Simulation Based Validation, which calculates the average coverage across 40 runs of the sampler - i.e. the average rate at which the posterior distribution for each group includes the true parameter value. For 95% intervals, the coverage rate should be close to 95%. These simulations are still ongoing. 
 
 # Alternatives Considered
 
