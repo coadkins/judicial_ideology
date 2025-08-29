@@ -10,12 +10,20 @@ validation_plot <- function(data, id, param, dgp_df) {
       coef = 0,
       outlier.shape = NA
     ) +
-    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27"),
+      labels = c("Democrat Appointed", "Republican Appointed")
+    ) +
     ggplot2::theme_minimal() +
-    ggplot2::theme(legend.position = "none") +
     ggplot2::ylab("Mu Theta") +
-    ggplot2::xlab(NULL) +
-    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+    ggplot2::xlab("Judge Cohort ID") +
+    ggplot2::ggtitle("Distribution of Mu_Theta Estimates by Cohort") +
+    ggplot2::labs(
+      ggplot2::caption(
+        "The colored boxplots depict the middle two quantiles of the \'true\' distribution of theta. \n
+  The gray boxplots show the distribution of estimates for mu_theta for each group"
+      )
+    )
 }
 
 reshape_posterior <- function(

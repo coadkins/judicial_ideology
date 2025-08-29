@@ -200,7 +200,7 @@ simulate_data <- function(
   )
   return(stan_data)
 }
-
+################# FUNCTIONS USED INTERNALLY IN SIMULATE_DATA() #################
 simulate_gamma <- function(
   x,
   knots,
@@ -363,42 +363,6 @@ gen_group_idx <- function(
   return(result)
 }
 
-#' Get idx for judge with theta closest to a target value
-#'
-#' @param df data frame of case outcomes
-#' @param x data frame column of individual ids; the data frame is filtered to
-#' include one entry per individual
-#' @param y data frame column of parameter values for each individual
-#' @param target the target value for the parameter y
-#'
-#' @returns an individual id (i.e. judge id) id'ing the individual with the
-#' score closest to the target value
-#'
-fix_judge_idx <- function(df, x, y, target) {
-  # narrow to unique individual ids
-  df <- with(df, df[!duplicated(x)], )
-  # calculate absolute distance to target value
-  df[, "distance_to_target"] <- abs(df[, y] - target)
-  # get index
-  idx <- which.min(df[, "distance_to_target"])
-  return(df[idx, x])
-}
-# Right now, this file just contains functions that are applicable are
-# applicable across simulation types
-
-# this function creates secondary data strucutures which are used to create
-# indexes in Stan, which facilitate vectorized sampling within groups
-#' Generate group indices for my stan model
-#'
-#' @param df a dataframe that matches individuals to groups
-#' @param x string, column containing individual id indicators
-#' @param y string, column containing group id indicators
-#' @param names vector, optional, names for elements of the output list
-#'
-#' @returns a list, the first element is a vector of individuals ordered by group,
-#' the second element is a vector of group start indices,
-#' and the third element is a vector of group end indices
-#'
 find_knots <- function(party, n_knots) {
   if (length(party) <= n_knots) {
     knots <- 1:length(party)
@@ -408,7 +372,6 @@ find_knots <- function(party, n_knots) {
   }
   return(knots)
 }
-
 visualize_variation_theta <- function(dgp_df) {
   ggplot2::ggplot(
     dgp_df,
@@ -417,28 +380,13 @@ visualize_variation_theta <- function(dgp_df) {
     ggplot2::geom_boxplot(
       outlier.shape = NA
     ) +
-    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27")
+    ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(legend.position = "none") +
     ggplot2::ylab("Theta") +
-    ggplot2::xlab(NULL) +
-    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
-}
-
-validation_plot <- function(data, id, param, dgp_df) {
-  ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
-    ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
-    ggplot2::geom_boxplot(
-      ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
-      data = dgp_df,
-      coef = 0,
-      outlier.shape = NA
-    ) +
-    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(legend.position = "none") +
-    ggplot2::ylab("Mu Theta") +
-    ggplot2::xlab(NULL) +
+    ggplot2::xlab("Judge Cohort ID") +
     ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
 }
 
@@ -451,7 +399,10 @@ visualize_variation_outcome <- function(outcome, g_ij, party) {
     dplyr::left_join(party_df, by = "groups")
   ggplot2::ggplot(data, ggplot2::aes(x = outcome, fill = party)) +
     ggplot2::geom_bar(alpha = 0.7) +
-    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27"),
+      labels = c("Democrat Appointed", "Republican Appointed")
+    ) +
     ggplot2::facet_wrap(~groups, ncol = 5) +
     ggplot2::labs(
       title = "Outcomes by Cohort",
