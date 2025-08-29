@@ -21,34 +21,37 @@ simulate_data <- function(
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
-  n_knots <- 3
   ## derived quantities
+  knots <- find_knots(party)
+  n_knots <- length(knots)
   idx_d <- which(party == 0)
   idx_r <- which(party == 1)
+  knots_d <- match(intersect(knots, idx_d), idx_d)
+  knots_r <- match(intersect(knots, idx_r), idx_r)
 
-  # design matrices for republican and democrat appointed covariates
+  # design matrices for simulating republican and democrat appointed covariates
   x_d <- splines::ns(
     year[idx_d],
-    knots = find_knots(party = year[idx_d], n_knots = n_knots),
+    knots = knots_d,
     intercept = TRUE
   )
 
   x_r <- splines::ns(
     year[idx_r],
-    knots = find_knots(party = year[idx_r], n_knots = n_knots),
+    knots = knots_r,
     intercept = TRUE
   )
   # simulate gamma for those cohorts
   gamma_d <- simulate_gamma(
     x_d[,],
-    knots = find_knots(party = year[idx_d], n_knots = n_knots),
+    knots = knots_d,
     trend_strength = -.5
   )
 
   gamma_r <- simulate_gamma(
     x_r[,],
-    knots = find_knots(party = year[idx_r], n_knots = n_knots),
-    trend_strength = -10
+    knots = knots_r,
+    trend_strength = -15
   )
 
   sigma_theta <- rlnorm(1, 0, .25)
@@ -150,7 +153,7 @@ simulate_data <- function(
 
   x <- splines::bs(
     year,
-    knots = find_knots(year, 6),
+    knots = knots,
     intercept = TRUE
   )
 
@@ -363,15 +366,13 @@ gen_group_idx <- function(
   return(result)
 }
 
-find_knots <- function(party, n_knots) {
-  if (length(party) <= n_knots) {
-    knots <- 1:length(party)
-  } else {
-    # evenly space knots
-    knots <- round(seq(1, length(party), length.out = n_knots))
-  }
-  return(knots)
+find_knots <- function(party) {
+  # Compare each element with the next one
+  knots <- party[-length(party)] != party[-1]
+  # Get indices where transitions occur (add 1 to get the higher index)
+  return(which(knots))
 }
+########## HELPER FUNCTIONS NOT USED IN SIMULATE_DATA() #######################
 visualize_variation_theta <- function(dgp_df) {
   ggplot2::ggplot(
     dgp_df,
