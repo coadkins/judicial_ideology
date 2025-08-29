@@ -76,3 +76,7 @@ stri_c(
   collapse = "-"
 )
 ```
+
+- Model from Git commit 9fd0663. When using RSP, the results look promising: there is 95% coverage of the true parameter value for theta. The 95% intervals could be narrower. In the next iteration, I will constrain one case type to have a positive beta, and revert to original strategy with the 'knots'.
+
+- 
