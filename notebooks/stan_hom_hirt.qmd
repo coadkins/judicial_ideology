@@ -1,0 +1,129 @@
+---
+title: "hIRT model in STAN"
+author: Cory Adkins
+date: August, 2025
+format: 
+    pdf
+---
+# Summary
+
+This model tries to estimate appellate judges' ideological scores from their votes on cases using an approach similar to an "item response model." The fundamental challenge is that--whereas typical applications of item response models address individual responses to a battery of identical instruments, like test items or legislative proposals--only a few judges vote on each case. To make this data tractable for analysis, I use hierarchical priors on all three of the primary parameters: $theta$ (judge ideology), $beta$ (case discrimination) and $alpha$ (case difficulty). Judges are grouped according to the *Presidential term* in which they were appointed. Although individual judges' ideology ideology scores cannot be estimated with great certainty, pooling scores allows me to estimate the same scores with much greater precision. Likewise, the case specific parameters $alpha$ and $beta$ are grouped according to the *category* of case they belong to.[^1] Finally, I draw on the the three types of outcomes available in the data: defendant victory, settlement, or plaintiff victory. Binomial outcomes generally provide too little variation to allow this model to draw appropriate distinctions between groups.
+
+The parameterization is discussed in more detail below:
+
+# Model of case outcomes:
+$$\mathrm{Pr}(Y_{ij} = h) = \Psi^{-1}(\alpha_j + \beta_j^\intercal \theta_i^*)\text{ for }h = 0,1$$
+
+- $Y_{ij}$ is the binomial outcome 0 or 1 for judge $i$ hearing case $j$.
+- $\Psi^{-1}$ is the inverse logit function.
+- $\alpha_j$ is the case-specific "difficulty" parameter.
+- $\beta_j$ is the case-specific "discrimination" parameter. Because of the multidimensional latent space, $\beta_j$ is modeled with $\mathcal{D}$ dimensions.
+- $\theta_i$ is the judge-specific "ability" parameter in my case, this is the ideology score. 
+
+# Model of Ideology Scores (Judge Level Parameters):
+
+The basic idea behind this model is that every group of judicial appointees has its ideology scores drawn from a distinct, group-level normal distribution. In this model, $mu_{g[i]}$ corresponds to the judicial cohort $g$ for judge $i$. The group means are modeled using:
+$$\mu_{g[i]} = \tilde{x}_{g[i]}\Gamma$$
+
+- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In particular, $\tilde{x}_{g[i]}$ is a model matrix for a cubic basis spline with an intercept and a "knot" at every point where there is a "regime change" - i.e. the party of the cohort switches from Republican to Democrat or vice versa. This basis spline model avoids the problems of multicollinearity from using cohort and party as predictors when cohorts are completely nested within parties, while still allowing adjacent means to influence each other.[^3]  
+
+- $\Gamma$ is a $[\mathcal{D} \times K]$ matrix of parameters predicting the mean value of $\theta_i$ for each group, $\mu_{g[i]}$. 
+
+And the individual $theta$ scores are modeled as:
+
+$$\theta_i \sim \mathcal{N}(\mu_{g[i]}, \Sigma_{\theta_{g[i]}})$$.
+
+There is a single, consistent (homoskedastic) variance across all groups, $\Sigma_{\theta}$.
+
+# Model of Case Parameters
+
+Like the judge level parameters, the case-level parameters - $/beta_j$ and $/alpha_j$ are given hierarchical priors. Unlike the judge-level parameters, $\beta_j$ and $\alpha_j$ are drawn from bivariate normal distributions, to account for possible correlation between $\alpha$ and $\beta$ for the same types of cases. For $\alpha_{B[j]}$ and $\beta_{B[j]}$ for case $j$ of category $B$: the $2\times 1$ vector:
+
+$$\alpha_{B[j]}, \beta_{B[j]} \sim \mathcal(N) (\Mu_{\alpha_B \beta_B}, \Sigma_{\alpha \beta})$$
+
+As with the $\mu_\theta$, every group $B$ shares the same homoskedastic variance $\Sigma$.
+
+# Identification
+
+Because a key component of the likliehood is a product $\beta_j \theta_i$, item response models are very difficult to identify. Both the scale and center and the distributions for each parameter are not fixed by the model, and neither are the signs for $\beta_j$ and $\theta_i$.    
+
+To overcome this, I employ variants of the identification constraints proposed by Berwick and Caughey (2024): 
+
+(1) $\sum_{i=1}^g \mu_g = 0$. Zero mean group ideal points. In my Stan model, this is a "hard" constraint, imposed by scaling and centering the products of $gamma x$ to have mean 0 and standard deviation 1.
+
+(2) $\Sigma_{\mu_\theta} = 0$. Unit variance group ideal points. See above.
+
+(3) $\mu_{beta_B} > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $mathcal{D} (in this case there is only one dimension)$. In simulations, I constrain the simulated $\mu_{\beta_B}$ with the highest value; in real data, I constrain the $\mu_{\beta_B}$ that corresponds to the category of cases that Republican judges are empirically mostly like to vote "pro-defendant" on (and is therefore likely to be positive).
+
+When these constraints are insufficient for identification, I employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains. For IRT models with only dimension, this procedure forces the mean draw draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
+
+# Estimation
+To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$. This strategy is described in the ![STAN manual]<https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization> as a method for improving convergence in hierarchical models where the size of each group is relatively small. For instance, the "centered" approach parameterizes $\theta_i$ as:
+
+$$\theta_{g[i]} \sim \mathcal{N}(\mu_\theta, \Sigma_\theta)$$ 
+
+While the "non-centered approach" parameterizes $theta_i$ as:
+$$\theta_i = \mu_{\theta_{i[g]}} + \sigma_{\mu_\theta} \cdot \theta_{i*}$$
+
+where $theta_i*$ represents $theta_i$'s variance from the mean (similar to a z-score). 
+
+# Priors
+
+$\sigma_{\alpha \beta} \sim \mathcal{W}^{-1} (\mathcal(I), 3)$; an inverse Wishart distribution with three degrees of freedom and a scale matrix equal to a $2\times2$ identity matrix. 
+
+$\theta_i*$, $\beta_j*$ and $\alpha_j*$ have standard normal priors.
+
+# Validation
+
+I validate the appropriateness of the model using simulated data with the following group and outcome structure:
+
+--- insert plot--
+
+This data matches the distribution of ability scores and outcomes predicted by my theory.
+
+In one MCMC run, the group level estimates track the direction of the true distribution of ideology scores.
+
+--- insert plot ---
+
+After RSP, the trace plots suggest that the model is well identified:
+
+--- insert plot ---
+
+# Alternatives Considered
+
+Most of the alternatives I implemented are coded at https://github.com/coadkins/judicial_ideology, where each branch corresponds (roughly) to one type of implementation. 
+
+## Parameterization
+I have run simulations using both centered and non-centered parameterization, and found non-centered parameterization to generally be more efficient and to result in superior coverage intervals.
+
+## Identification
+I considered a range of identification stategies, including:
+- Centering (but not scaling) $\mu_\theta$ for all groups on $\mu_{\theta_{g=1}}$. This makes the results -- and especially the variance -- easier to interpret, but did not sufficiently constrain $\theta$ for identification.  
+
+## Grouping Structure
+### No hierarchical priors on $\alpha$ and $\beta$
+Although I originally did not impose hierarchical priors on case-level parameters $alpha$ and $beta$, the inclusion of this structure makes a massive difference in the standard errors for $\mu_\theta$. 
+
+### Independent means for $\alpha$ and $\beta$
+In simulations, drawing $\mu_\alpha$ and $\mu_\beta$ from independent normal distributions versus a single bivariate normal distribution did not make much of a difference; however, I believe the bivariate normal distribution makes more sense given the strong probability that $\mu_\alpha$ and $\mu_\beta$ are correlated for each case type in the real data.
+
+## Party-level grand-means for $\mu_theta$
+I originally attempted to model the judge cohort means using a linear model with predictors for party (of the appointing President) and cohort. This is not identified because of the groups are completly nested within each groups, resulting in multicollinearity between those predictors. To get aroud this, I attempted to model Democrat and Rebublican appointed judges as having seperate grand means. However, this excarberbates the issue of location and scale non-identifiability, with each party/group exploring different areas within the larger parameter space.
+
+The basis spline approach keeps the group means in the same space while allowing sufficient flexibility for (chronologically) adjacent means to be quite different. One downside of this approach is the poor performance of splines outside the final "knot".
+
+# STAN code
+
+# Bibliography 
+
+Berwick, Elissa and Caughey, Devin. "Dynamic Mulitidimensional Scaling with Aggregate Data: An Ordinal Group Level IRT Approach".
+
+Lewandowski, Daniel, Dorota Kurowicka, and Harry Joe. "Generating random correlation matrices based on vines and extended onion method." Journal of multivariate analysis 100, no. 9 (2009): 1989-2001.
+
+Stan Functions Reference, Version 2.36. Stan Development Team. Available at, https://mc-stan.org/docs/2_36/functions-reference/.
+
+Zhou, Xiang. "Hierarchical item response models for analyzing public opinion." Political Analysis 27, no. 4 (2019): 481-502.
+
+[^1]: Because I rely the category structure of cases, I no longer "code" the individual case outcomes like I did in previous versions of this model.
+
+[^2]: This approach is discussed in the Stan Functions Reference, "Covariance Matrix Distributions" and in Lewandowski, et al. (2009)
