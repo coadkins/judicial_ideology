@@ -88,6 +88,10 @@ list(
       mcmc_data[[c(".join_data", "party")]]
     )
   ),
+  tar_target(
+    theta_distribution,
+    visualize_variation_theta(mcmc_data[[c(".join_data", "theta_df")]])
+  ),
   # RSP
   tar_target(
     identified_draws_array_1,
