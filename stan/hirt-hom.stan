@@ -12,7 +12,6 @@ data {
   // These data structures facilitate identification by creating 
   // constraints on mu_beta
   int<lower=1> mu_case_pos_idx;
-  int<lower=1> mu_case_neg_idx;
   // I use these data structures to mimic ragged arrays of judges and cases
   // This allows me to vectorize sampling within groups, which is much
   // faster than looping across all judges and individuals
@@ -100,10 +99,7 @@ model {
   for (b in 1 : B) {
     if (b == mu_case_pos_idx) {
       mu_ab[b, 1] ~ normal(0, 5);
-      mu_ab[b, 2] ~ normal(2, .5);
-    } else if (b == mu_case_neg_idx) {
-      mu_ab[b, 1] ~ normal(0, 5);
-      mu_ab[b, 2] ~ normal(-2, .5);
+      mu_ab[b, 2] ~ lognormal(0, 1);
     } else {
       mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
     }

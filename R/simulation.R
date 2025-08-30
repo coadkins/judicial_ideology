@@ -22,7 +22,7 @@ simulate_data <- function(
   n_cases <- n_judge * case_ij
   n_case_types <- 50
   ## derived quantities
-  knots <- find_knots(party)
+  knots <- floor(quantile(year, seq(from = 0, to = 1, length.out = 6)))
   n_knots <- length(knots)
   idx_d <- which(party == 0)
   idx_r <- which(party == 1)
@@ -30,6 +30,11 @@ simulate_data <- function(
   knots_r <- match(intersect(knots, idx_r), idx_r)
 
   # design matrices for simulating republican and democrat appointed covariates
+  x <- splines::ns(
+    year,
+    intercept = TRUE
+  )
+
   x_d <- splines::ns(
     year[idx_d],
     knots = knots_d,
@@ -150,12 +155,6 @@ simulate_data <- function(
       with(cases_df, cases_df[!duplicated(year), "year"]) |>
         as.numeric()
     )
-
-  x <- splines::bs(
-    year,
-    knots = knots,
-    intercept = TRUE
-  )
 
   stan_data <- list(
     N = nrow(cases_df),

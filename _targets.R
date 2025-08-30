@@ -23,7 +23,7 @@ tar_option_set(
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
-      prefix = "main",
+      prefix = "ordered_outcome",
       endpoint = Sys.getenv("S3_ENDPOINT"),
       region = Sys.getenv("S3_REGION")
     )
@@ -67,8 +67,8 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
+    iter_warmup = 1500,
+    iter_sampling = 1500,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),

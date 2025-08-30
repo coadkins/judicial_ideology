@@ -1,0 +1,82 @@
+---
+title: "Model Diary"
+format: html
+---
+
+```{r}
+library(stringi)
+library(targets)
+library(qs2)
+library(paws.storage)
+```
+
+# Graphical Results
+
+```{r}
+#| label: update targets metadata
+tar_meta_download()
+```
+
+```{r}
+#| label: trace-plots
+plot <- tar_read(mcmc_trace_plots)
+print(plot)
+```
+
+
+```{r}
+#| label: validation-plot
+plot2 <- tar_read(mcmc_validation_plot)
+print(plot2)
+```
+
+```{r}
+#| label: trace plots after RSP
+```
+
+```{r}
+#| label: validation plots after RSP
+plot4 <- tar_read(id_validation_plot_1)
+plot4
+```
+
+```{r}
+# label: trace plots with alt RSP
+```
+
+```{r}
+# label: validation plots with alt RSP
+plot6 <- tar_read(id_validation_plot_2)
+plot6
+```
+
+```{r}
+# label: trace plots with sign id
+
+```
+
+```{r}
+# label: validation plots with sign id
+plot8 <- tar_read(id_validation_plot_3)
+plot8
+```
+
+# Comments
+The date and hash of the current model run is:
+```{r target-hash}
+stri_c(
+  c(
+    as.character(
+      as.Date(
+        tar_meta(mcmc_mcmc_hirt.hom, "time")[[2]]
+      )
+    ),
+    tar_meta(mcmc_mcmc_hirt.hom, "data")[[2]]
+  ),
+  collapse = "-"
+)
+```
+
+- Model from Git commit 9fd0663. When using RSP, the results look promising: there is 95% coverage of the true parameter value for theta. The 95% intervals could be narrower. In the next iteration, I will constrain one case type to have a positive beta, and revert to original strategy with the 'knots'.
+
+- 
