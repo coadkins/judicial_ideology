@@ -9,5 +9,5 @@ cd judicial_ideology
 Rscript R/setup.R
 Rscript R/install_cmdstan.R
 Rscript R/install_stantargets.R
-Rscript -e 'targets::tar_make(store = "_targets")
+Rscript -e 'targets::tar_make(store = "_targets")'
 ```

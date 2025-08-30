@@ -1,87 +1,84 @@
 ---
-title: "hIRT model in STAN"
+title: "hIRT models for Judicial Ideology"
 author: Cory Adkins
-date: August, 2025
 format: 
     pdf
 ---
 # Summary
 
-This model tries to estimate appellate judges' ideological scores from their votes on cases using an approach similar to an "item response model." The fundamental challenge is that--whereas typical applications of item response models address individual responses to a battery of identical instruments, like test items or legislative proposals--only a few judges vote on each case. To make this data tractable for analysis, I use hierarchical priors on all three of the primary parameters: $theta$ (judge ideology), $beta$ (case discrimination) and $alpha$ (case difficulty). Judges are grouped according to the *Presidential term* in which they were appointed. Although individual judges' ideology ideology scores cannot be estimated with great certainty, pooling scores allows me to estimate the same scores with much greater precision. Likewise, the case specific parameters $alpha$ and $beta$ are grouped according to the *category* of case they belong to.[^1] Finally, I draw on the the three types of outcomes available in the data: defendant victory, settlement, or plaintiff victory. Binomial outcomes generally provide too little variation to allow this model to draw appropriate distinctions between groups.
+This model tries to estimate appellate judges' ideological scores from their votes on cases using an approach similar to an "item response model." The fundamental challenge is that only a few judges vote on each case--in contrast to typical applications of item response models, which address individual responses to a battery of identical instruments, like test items or legislative proposals. To make this data tractable for analysis, I use hierarchical priors on all three of the primary parameters: $\theta$ (judge ideology), $\beta$ (case discrimination) and $\alpha$ (case difficulty). Judges are grouped according to the *Presidential term* in which they were appointed. Although individual judges' ideology scores cannot be estimated with great certainty, pooling scores allows me to estimate the cohort-level scores with much greater precision. Likewise, the case specific parameters $\alpha$ and $\beta$ are grouped according to the *category* of case they belong to.[^1] Finally, I draw on the  three types of outcomes available in the data: defendant victory, settlement, or plaintiff victory. Binomial outcomes generally provide too little variation to allow this model to draw appropriate distinctions between groups.
 
-The parameterization is discussed in more detail below:
+The parameterization is discussed in more detail below. Implementation is available at [this Github repository](https://github.com/coadkins/judicial_ideology)
 
 # Model of case outcomes:
 This is an ordinal logistic regression, where the linar predictor takes the form:
-$$(eta_{ij} = \alpha_j + \beta_j^\intercal \theta_i^*)$$
+$$\eta_{ij} = \alpha_j + \beta_j^\intercal \theta_i$$
 
-- $\alpha_j$ is the case-specific "difficulty" parameter. We can think of this as the how likely a Republican judge is to vote for the defendant
-- $\beta_j$ is the case-specific "discrimination" parameter. 
+- $\alpha_j$ is the case-specific "difficulty" parameter. We can think of this as controlling how likely an ideologically neutral judge is to vote for the defendant ($k=3$) in a given case. 
+- $\beta_j$ is the case-specific "discrimination" parameter. We can think of this as controlling how "ideologically charged" the content of case is. On charged cases, Republicans are more likely to vote with each other and against Democrats. 
 - $\theta_i$ is the judge-specific "ability" parameter in my case, this is the ideology score. 
 
-- The link function is an "Ordinal Logistic" Function with 2 cutpoints corresponding to three possible ordered outcomes.
+- The link function is an "Ordered Logistic" Function with 2 cutpoints corresponding to three possible ordered outcomes.
 
 $$
-\text{OrderedLogistic}(k | \eta_ij, c) =
+\text{Pr}(Y_{ij} = k | \eta_{ij}, c) =
 \begin{cases}
-    1 - \text{logit}^{-1}(\eta - c_1) & \text{if } k = 1, \\
-    \text{logit}^{-1}(\eta - c_1) - \text{logit}^{-1}(\eta - c_2) & \text{if } k = 2, \\
-    \text{logit}^{-1}(\eta - c_2) - \text{logit}^{-1}(\eta - c_3) & \text{if } k = 3, \\
-    \text{logit}^{-1}(\eta - c_3) & \text{if } k = 4.
+    1 - \text{logit}^{-1}(\eta_{ij} - c_k) & \text{for } k = 1, \\
+    \text{logit}^{-1}(\eta_{ij} - c_{k-1}) - \text{logit}^{-1}(\eta_{ij} - c_k) & \text{for } k = 2, \\
+    \text{logit}^{-1}(\eta_{ij} - c_{k-1}) & \text{for } k = 3 \\
 \end{cases}
 $$
 
-- $Y_{ij}$ is the ordered outcome ranging from 1 to 3 for judge $i$ hearing case $j$. This corresponds to "defendant victory", "settlement" and "plaintiff victory", respectively. 
-
-
-
+- $K$ is the number of ordered outcomes - in this case 3 - and $k \in \{1,..,$K\}$.
+- $Y_{ij}$ is the ordered outcome ranging from 1 to $K$ for judge $i$ hearing case $j$. This corresponds to "defendant victory", "settlement" and "plaintiff victory", respectively. 
+- $c_k$ is the "cutpoint" for outcome $k$, which determines what value the linear predictor $\eta$ must equal for there to be a 50% chance of outcome $k$. 
 
 # Model of Ideology Scores (Judge Level Parameters):
 
 The basic idea behind this model is that every group of judicial appointees has its ideology scores drawn from a distinct, group-level normal distribution. In this model, $mu_{g[i]}$ corresponds to the judicial cohort $g$ for judge $i$. The group means are modeled using:
-$$\mu_{g[i]} = \tilde{x}_{g[i]}\Gamma$$
+$$\mu_{g[i]} = \tilde{x}_{g[i]} \cdot \gamma$$
 
-- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In particular, $\tilde{x}_{g[i]}$ is a model matrix for a cubic basis spline with an intercept and a "knot" at every point where there is a "regime change" - i.e. the party of the cohort switches from Republican to Democrat or vice versa. This basis spline model avoids the problems of multicollinearity from using cohort and party as predictors when cohorts are completely nested within parties, while still allowing adjacent means to influence each other.[^3]  
+- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In particular, $\tilde{x}_{g[i]}$ is a model matrix for a cubic natural spline with an intercept and a "knot" at every point where there is a "regime change" - i.e., when the party of the cohort switches from Republican to Democrat or vice versa. This basis spline model avoids the problems of multicollinearity that arise from using party as a predictor when cohorts are completely nested within parties. It nonetheless still allows adjacent means to influence each other.[^3]  
 
-- $\Gamma$ is a $[\mathcal{D} \times K]$ matrix of parameters predicting the mean value of $\theta_i$ for each group, $\mu_{g[i]}$. 
+- $\gamma$ is a $[1 \times K]$ matrix of parameters predicting the mean value of $\theta_i$ for each group, $\mu_{g[i]}$. 
 
-And the individual $theta$ scores are modeled as:
+And the individual $\theta$ scores are modeled as:
 
-$$\theta_i \sim \mathcal{N}(\mu_{g[i]}, \Sigma_{\theta_{g[i]}})$$.
+$$\theta_i \sim \mathcal{N}(\mu_{g[i]}, \Sigma_{\theta})$$
 
 There is a single, consistent (homoskedastic) variance across all groups, $\Sigma_{\theta}$.
 
 # Model of Case Parameters
 
-Like the judge level parameters, the case-level parameters - $/beta_j$ and $/alpha_j$ are given hierarchical priors. Unlike the judge-level parameters, $\beta_j$ and $\alpha_j$ are drawn from bivariate normal distributions, to account for possible correlation between $\alpha$ and $\beta$ for the same types of cases. For $\alpha_{B[j]}$ and $\beta_{B[j]}$ for case $j$ of category $B$: the $2\times 1$ vector:
+Like the judge level parameters, the case-level parameters - $\beta_j$ and $/alpha_j$ are given hierarchical priors. Unlike the judge-level parameters, $\beta_j$ and $\alpha_j$ are drawn from bivariate normal distributions, to account for possible correlation between $\alpha$ and $\beta$ for the same types of cases. For $\alpha_{B[j]}$ and $\beta_{B[j]}$ for case $j$ of category $B$: the $2\times 1$ vector:
 
-$$\alpha_{B[j]}, \beta_{B[j]} \sim \mathcal(N) (\Mu_{\alpha_B \beta_B}, \Sigma_{\alpha \beta})$$
+$$\alpha_{B[j]}, \beta_{B[j]} \sim \mathcal{N} (\mu_{\alpha_B \beta_B}, \Sigma_{\alpha \beta})$$
 
-As with the $\mu_\theta$, every group $B$ shares the same homoskedastic variance $\Sigma$.
+As with the $\mu_\theta$, every group $B$ shares the same homoskedastic variance $\Sigma_{\alpha \beta}$.
 
 # Identification
 
-Because a key component of the likliehood is a product $\beta_j \theta_i$, item response models are very difficult to identify. Both the scale and center and the distributions for each parameter are not fixed by the model, and neither are the signs for $\beta_j$ and $\theta_i$.    
+Because a key component of the likliehood is a product $\beta_j \theta_i$, item response models are very difficult to identify. Both the scale and center of the posterior distributions for each parameter are not fixed by the model, and neither are the signs for $\beta_j$ and $\theta_i$.    
 
 To overcome this, I employ variants of the identification constraints proposed by Berwick and Caughey (2024): 
 
-(1) $\sum_{i=1}^g \mu_g = 0$. Zero mean group ideal points. In my Stan model, this is a "hard" constraint, imposed by scaling and centering the products of $gamma x$ to have mean 0 and standard deviation 1.
+(1) $\sum_{i=1}^g \mu_g = 0$. Zero mean group ideal points. In my Stan model, this is a "hard" constraint, imposed by scaling and centering the products of $\tilde{x} \gamma$ to have mean 0 and standard deviation 1.
 
-(2) $\Sigma_{\mu_\theta} = 0$. Unit variance group ideal points. See above.
+(2) $\Sigma_{\theta} = 1$. Unit variance group ideal points. See above.
 
-(3) $\mu_{beta_B} > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $mathcal{D} (in this case there is only one dimension)$. In simulations, I constrain the simulated $\mu_{\beta_B}$ with the highest value; in real data, I constrain the $\mu_{\beta_B}$ that corresponds to the category of cases that Republican judges are empirically mostly like to vote "pro-defendant" on (and is therefore likely to be positive).
+(3) $\mu_{\beta_B} > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $\mathcal{D}$ (in this case there is only one dimension). In simulations, I constrain the simulated $\mu_{\beta_B}$ with the highest value; in real data, I constrain the $\mu_{\beta_B}$ that corresponds to the category of cases that Republican judges are empirically mostly like to vote with with other Republicans on (and is therefore likely to be positive).
 
-When these constraints are insufficient for identification, I employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains. For IRT models with only dimension, this procedure forces the mean draw draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
+When these constraints are insufficient for identification, I employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains (Papastamoulis et. al 2022). For IRT models with only one dimension, this procedure forces the mean draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
 
 # Estimation
-To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$. This strategy is described in the ![STAN manual]<https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization> as a method for improving convergence in hierarchical models where the size of each group is relatively small. For instance, the "centered" approach parameterizes $\theta_i$ as:
+To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$ (Betancourt and Girolami 2015). This strategy is described in [the STAN user manual] (https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization) as a method for improving convergence in hierarchical models where the size of each group is relatively small.[^4] For instance, the "centered" approach parameterizes $\theta_i$ as:
 
 $$\theta_{g[i]} \sim \mathcal{N}(\mu_\theta, \Sigma_\theta)$$ 
 
-While the "non-centered approach" parameterizes $theta_i$ as:
-$$\theta_i = \mu_{\theta_{i[g]}} + \sigma_{\mu_\theta} \cdot \theta_{i*}$$
+While the "non-centered approach" parameterizes $\theta_i$ as:
+$$\theta_i = \mu_{\theta_{i[g]}} + \sigma_{\mu_\theta} \cdot \theta_{i}^*$$
 
-where $theta_i*$ represents $theta_i$'s variance from the mean (similar to a z-score). 
+where $\theta_i^*$ represents $\theta_i$'s variance from the mean (similar to a z-score). Because the actively sampled variable, $\theta_i^*$, is by definition uncorrelated, the sampler explores this space more efficiently.  
 
 # Priors
 
@@ -89,7 +86,7 @@ $\sigma_{\alpha \beta} \sim \mathcal{W}^{-1} (\mathcal(I), 3)$; an inverse Wisha
 
 $\theta_i*$, $\beta_j*$ and $\alpha_j*$ have standard normal priors.
 
-$\eta$ has a very wide prior of $\mathcal{N} (0, 10)$.
+$c$ has a very wide prior of $\mathcal{N} (0, 10)$.
 
 # Validation
 
@@ -107,40 +104,173 @@ After RSP, the trace plots suggest that the model is well identified:
 
 --- insert plot ---
 
-As a check, I have implemented a simplified version of Simulation Based Validation, which calculates the average coverage across 40 runs of the sampler - i.e. the average rate at which the posterior distribution for each group includes the true parameter value. For 95% intervals, the coverage rate should be close to 95%. These simulations are still ongoing. 
+As a check, I have implemented a simplified version of Simulation Based Validation, which calculates the average coverage across 40 runs of the sampler - i.e. the average rate at which the posterior distribution for each group includes the true parameter value (Talts et al. 2018). For 95% intervals, the coverage rate should be close to 95%. These simulations are still ongoing. 
 
 # Alternatives Considered
 
-Most of the alternatives I implemented are coded at https://github.com/coadkins/judicial_ideology, where each branch corresponds (roughly) to one type of implementation. 
+Most of the alternatives I implemented are coded at [this repository](https://github.com/coadkins/judicial_ideology), where each branch corresponds (roughly) to one type of implementation. 
 
 ## Parameterization
 I have run simulations using both centered and non-centered parameterization, and found non-centered parameterization to generally be more efficient and to result in superior coverage intervals.
 
 ## Identification
 I considered a range of identification stategies, including:
-- Centering (but not scaling) $\mu_\theta$ for all groups on $\mu_{\theta_{g=1}}$. This makes the results -- and especially the variance -- easier to interpret, but did not sufficiently constrain $\theta$ for identification.  
+- Centering (but not scaling) $\mu_\theta$ for all groups on a reference group $\mu_{\theta_{g=1}}$. This makes the results -- and especially the variance -- easier to interpret, but did not sufficiently constrain $\theta$ for identification.  
 
 ## Grouping Structure
 ### No hierarchical priors on $\alpha$ and $\beta$
-Although I originally did not impose hierarchical priors on case-level parameters $alpha$ and $beta$, the inclusion of this structure makes a massive difference in the standard errors for $\mu_\theta$. 
+Although I originally did not impose hierarchical priors on case-level parameters $\alpha$ and $\beta$, the inclusion of this structure makes a massive difference in the standard errors for $\mu_\theta$. 
 
 ### Independent means for $\alpha$ and $\beta$
 In simulations, drawing $\mu_\alpha$ and $\mu_\beta$ from independent normal distributions versus a single bivariate normal distribution did not make much of a difference; however, I believe the bivariate normal distribution makes more sense given the strong probability that $\mu_\alpha$ and $\mu_\beta$ are correlated for each case type in the real data.
 
-## Party-level grand-means for $\mu_theta$
+## Party-level grand-means for $\mu_\theta$
 I originally attempted to model the judge cohort means using a linear model with predictors for party (of the appointing President) and cohort. This is not identified because of the groups are completly nested within each groups, resulting in multicollinearity between those predictors. To get aroud this, I attempted to model Democrat and Rebublican appointed judges as having seperate grand means. However, this excarberbates the issue of location and scale non-identifiability, with each party/group exploring different areas within the larger parameter space.
 
 The basis spline approach keeps the group means in the same space while allowing sufficient flexibility for (chronologically) adjacent means to be quite different. One downside of this approach is the poor performance of splines outside the final "knot".
 
+## Multiple Dimensions
+
+Theoretically, I think there is a real possibility that judicial ideology scores should be modeled with multiple 'dimensions' - i.e. uncorrelated subfactors. I have not been able to implement an identified 2 dimensional model, even when employing additional constraints for each dimension. I believe this suggests that a 3-level ordered outcome to insufficiently granular to make these distinctions. However, I have not implemented the more advanced RSP algorithms discussed in Berwick and Caughey (2024) and implemented in the [`dbmm` package] (https://github.com/devincaughey/dbmm).
+
 # STAN code
+
+```{{stan}}
+data {
+  int<lower=1> N;  // number of observations
+  int<lower=1> N_case_id; // number of cases (with 3 judge votes each)
+  int<lower=1> B; // number of case types
+  int<lower=1> N_judge; // number of judges
+  int<lower=1> G; // number of groups
+  int<lower=1> K; // number of covariates to model group mean
+  array[N] int<lower=1, upper=3> outcome; // ordered outcome (judge votes)
+  array[N] int<lower=1, upper=N_judge> ii; //tracks judge for obs. n
+  array[N] int<lower=1, upper=N_case_id> jj; //tracks case for obs. n
+  matrix[G, K] x; // intercept and weights for basis spline of "cohort year" 
+  // These data structures facilitate identification by creating             // 
+  // constraints on mu_beta
+  int<lower=1> mu_case_pos_idx;
+  // I use these data structures to mimic ragged arrays of judges and cases //
+  // This allows me to vectorize sampling within groups, which is much      //
+  // faster than looping across all judges and individuals                  //
+  array[N_judge] int judges_by_group; // all of the judges, ordered by cohort
+  array[G] int group_start; //in `judges_by_group`, the index each group starts at
+  array[G] int group_end; //in `judges_by_group`, the index each group ends at 
+  array[N_case_id] int cases_by_type; // of of the cases, ordered by type
+  array[B] int type_start; // in 'cases_by_type', the index each type starts at
+  array[B] int type_end; //in 'cases_by_type', the index each type ends at
+}
+parameters {
+  // parameters related to ability scores
+  vector[N_judge] theta_raw; // judge ability score (used for non-centered par.)
+  real<lower=0> sigma_theta; // homoskedastic variance for all groups of judges
+  real gamma_int; // models mu_theta, coef for reference group - strong 0 prior
+  vector[K - 1] gamma_free; // models mu_theta, coef for all other basis weights
+  // other parameters
+  vector[N_case_id] alpha_raw; // intercept for each case (used for NCP)
+  vector[N_case_id] beta_raw; // discrimination score (used for NCP)
+  // mu_alpha and mu_beta sampled from bivariate normal distribution
+  matrix[B, 2] mu_ab; // mu_alpha and mu_beta for each case category
+  cov_matrix[2] Sigma; // covariance matrix for sampling mu_alpha/mu_beta 
+  real<lower=0> sigma_beta; //homoskedastic variance for all beta types 
+  real<lower=0> sigma_alpha; //homoskedastic variance for all alpha types
+  ordered[2] c; // cutpoints
+}
+transformed parameters {
+  // Extract mu_alpha and mu_beta from bivariate normal sampling
+  vector[B] mu_alpha = mu_ab[ : , 1];
+  vector[B] mu_beta = mu_ab[ : , 2];
+  
+  // non-centered parametrizaion for case parameters 
+  vector[N_case_id] alpha_nc;
+  vector[N_case_id] alpha;
+  vector[N_case_id] beta_nc;
+  vector[N_case_id] beta;
+  
+  for (b in 1 : B) {
+    int start = type_start[b];
+    int end = type_end[b];
+    alpha_nc[cases_by_type[start : end]] = 
+        mu_alpha[b] + sigma_alpha * alpha_raw[cases_by_type[start : end]];
+    beta_nc[cases_by_type[start : end]] = 
+        mu_beta[b] + sigma_beta * beta_raw[cases_by_type[start : end]];
+  }
+  // scale and shift beta to normal(0,1)
+  beta = (beta_nc - mean(beta_nc)) / sd(beta_nc);
+  // scale and shift alpha to normal(0,1)
+  alpha = (alpha_nc - mean(alpha_nc)) / sd(alpha_nc);
+  // construct mu_theta from basis spline coefficients
+  vector[G] mu_theta;
+  // reference group
+  // calculate mean ability for each group
+  vector[K] gamma;
+  gamma = append_row(gamma_int, gamma_free);
+  mu_theta = x * gamma;
+  // Non-centered parameterization for theta
+  vector[N_judge] theta_nc;
+  // Stan won't vectorize e.g. `theta ~ normal(mu_theta[group_id], sigma_theta)` :/
+  // but vectorizing within groups is possible 
+  for (g in 1 : G) {
+    int start = group_start[g];
+    int end = group_end[g];
+    theta_nc[judges_by_group[start : end]] = 
+        mu_theta[g] + sigma_theta * theta_raw[judges_by_group[start : end]];
+  }
+  // center and scale theta 
+  vector[N_judge] theta;
+  theta = (theta_nc - mean(theta_nc)) / sd(theta_nc);
+}
+model {
+  // See "https://mc-stan.org/docs/2_36/stan-users-guide/regression"
+  // prior for theta and related parameters
+  theta_raw ~ std_normal();
+  sigma_theta ~ lognormal(0, .25);
+  gamma_int ~ normal(0, .01); // soft constraint on reference group
+  gamma_free ~ normal(0, 1);
+  
+  c ~ normal(0, 5); // wide prior for cutpoints
+  // Priors for case-specific parameters
+  //  Bivariate normal prior for mu_alpha and mu_beta
+  for (b in 1 : B) {
+    if (b == mu_case_pos_idx) {
+      mu_ab[b, 1] ~ normal(0, 5);
+      mu_ab[b, 2] ~ lognormal(0, 1);
+    } else {
+      mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
+    }
+  }
+  // Inverse Wishart prior for mu_ab's covariance matrix
+  Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
+  
+  sigma_alpha ~ lognormal(0, .25);
+  sigma_beta ~ lognormal(0, .25);
+  alpha_raw ~ std_normal();
+  beta_raw ~ std_normal();
+  // sample likelihood (vectorized)
+  outcome ~ ordered_logistic(beta[jj] .* theta[ii] + alpha[jj], c);
+}
+generated quantities {
+  array[N] int<lower=0, upper=1> y_hat;
+  for (n in 1 : N) {
+    y_hat[n] = ordered_logistic_rng(beta[jj[n]] .* theta[ii[n]]
+                                    + alpha[jj[n]], c);
+  }
+}
+```
 
 # Bibliography 
 
-Berwick, Elissa and Caughey, Devin. "Dynamic Mulitidimensional Scaling with Aggregate Data: An Ordinal Group Level IRT Approach".
+Berwick, Elissa and Caughey, Devin. "Dynamic Mulitidimensional Scaling with Aggregate Data: An Ordinal Group Level IRT Approach"
+
+Betancourt, Michael, and Mark Girolami. "Hamiltonian Monte Carlo for hierarchical models." Current trends in Bayesian methodology with applications 79, no. 30 (2015): 2-4.
 
 Lewandowski, Daniel, Dorota Kurowicka, and Harry Joe. "Generating random correlation matrices based on vines and extended onion method." Journal of multivariate analysis 100, no. 9 (2009): 1989-2001.
 
+Papastamoulis, Panagiotis, and Ioannis Ntzoufras. "On the identifiability of Bayesian factor analytic models." Statistics and Computing 32, no. 2 (2022): 23.
+
 Stan Functions Reference, Version 2.36. Stan Development Team. Available at, https://mc-stan.org/docs/2_36/functions-reference/.
+
+Talts, Sean, Michael Betancourt, Daniel Simpson, Aki Vehtari, and Andrew Gelman. 2018. “Validating Bayesian Inference Algorithms with Simulation-Based Calibration.” arXiv, no. 1804.06788. 
 
 Zhou, Xiang. "Hierarchical item response models for analyzing public opinion." Political Analysis 27, no. 4 (2019): 481-502.
 
