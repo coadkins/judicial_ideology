@@ -15,26 +15,23 @@ The parameterization is discussed in more detail below:
 This is an ordinal logistic regression, where the linar predictor takes the form:
 $$(eta_{ij} = \alpha_j + \beta_j^\intercal \theta_i^*)$$
 
-- $\alpha_j$ is the case-specific "difficulty" parameter. We can think of this as the how likely a Republican judge is to vote for the defendant
-- $\beta_j$ is the case-specific "discrimination" parameter. 
+- $\alpha_j$ is the case-specific "difficulty" parameter. We can think of this as how likely an ideologically neutral judge is to vote for the defendant ($k=3$) in a given case. 
+- $\beta_j$ is the case-specific "discrimination" parameter. We can think of this as how "ideological charged" the content of case is. 
 - $\theta_i$ is the judge-specific "ability" parameter in my case, this is the ideology score. 
 
-- The link function is an "Ordinal Logistic" Function with 2 cutpoints corresponding to three possible ordered outcomes.
+- The link function is an "Ordered Logistic" Function with 2 cutpoints corresponding to three possible ordered outcomes.
 
 $$
-\text{OrderedLogistic}(k | \eta_ij, c) =
+\text{Pr}(Y_ij = k | \eta_ij, c) =
 \begin{cases}
-    1 - \text{logit}^{-1}(\eta - c_1) & \text{if } k = 1, \\
-    \text{logit}^{-1}(\eta - c_1) - \text{logit}^{-1}(\eta - c_2) & \text{if } k = 2, \\
-    \text{logit}^{-1}(\eta - c_2) - \text{logit}^{-1}(\eta - c_3) & \text{if } k = 3, \\
-    \text{logit}^{-1}(\eta - c_3) & \text{if } k = 4.
+    1 - \text{logit}^{-1}(\eta - c_k) & \text{for } k = 1, \\
+    \text{logit}^{-1}(\eta - c_{k-1}) - \text{logit}^{-1}(\eta - c_k) & \text{for } k = 2, \\
+    \text{logit}^{-1}(\eta - c_{k-1}) & \text{for } k = 3 \\
 \end{cases}
 $$
 
 - $Y_{ij}$ is the ordered outcome ranging from 1 to 3 for judge $i$ hearing case $j$. This corresponds to "defendant victory", "settlement" and "plaintiff victory", respectively. 
-
-
-
+- $c_k$ is the "cutpoint" for outcome $k$, which determines at what values of $\eta$ result in each outcome $k$. 
 
 # Model of Ideology Scores (Judge Level Parameters):
 
@@ -89,7 +86,7 @@ $\sigma_{\alpha \beta} \sim \mathcal{W}^{-1} (\mathcal(I), 3)$; an inverse Wisha
 
 $\theta_i*$, $\beta_j*$ and $\alpha_j*$ have standard normal priors.
 
-$\eta$ has a very wide prior of $\mathcal{N} (0, 10)$.
+$\c$ has a very wide prior of $\mathcal{N} (0, 10)$.
 
 # Validation
 
