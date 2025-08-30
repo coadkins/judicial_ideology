@@ -1,7 +1,3 @@
-options(
-  repos = c(
-    CRAN = "https://packagemanager.posit.co/cran/__linux__/rhel9/latest")
-)
 source("renv/activate.R")
 renv::settings$snapshot.type("explicit")
 renv::settings$ignored.packages("cmdstanr")
