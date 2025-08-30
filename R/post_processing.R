@@ -2,22 +2,27 @@
 ################### FUNCTIONS RELATED TO POST-PROCESSING MCMC DRAWS ###########
 ###############################################################################
 validation_plot <- function(data, id, param, dgp_df) {
-  ggplot2::ggplot(data, aes(x = {{ id }}, y = {{ param }})) +
+  ggplot2::ggplot(data, ggplot2::aes(x = {{ id }}, y = {{ param }})) +
     ggplot2::geom_boxplot(alpha = 0.5, fill = "lightgrey") +
     ggplot2::geom_boxplot(
-      aes(x = year, y = theta, fill = factor(party), alpha = .5),
+      ggplot2::aes(x = year, y = theta, fill = factor(party), alpha = .5),
       data = dgp_df,
       coef = 0,
       outlier.shape = NA
     ) +
-    ggplot2::scale_fill_manual(values = c("#1696d2", "#db2b27")) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27"),
+      labels = c("Democrat Appointed", "Republican Appointed")
+    ) +
     ggplot2::theme_minimal() +
-    ggplot2::theme(legend.position = "none") +
     ggplot2::ylab("Mu Theta") +
-    ggplot2::xlab(NULL) +
-    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+    ggplot2::xlab("Judge Cohort ID") +
+    ggplot2::ggtitle("Distribution of Mu_Theta Estimates by Cohort") +
+    ggplot2::labs(
+      caption = "The colored boxplots depict the middle two quantiles of the \'true\' distribution of theta. \n
+  The gray boxplots show the distribution of estimates for mu_theta for each group."
+    )
 }
-
 
 reshape_posterior <- function(
   post_array,
@@ -39,4 +44,101 @@ reshape_posterior <- function(
   order_df <- tibble::tibble(id = order, !!index_label := seq_along(order))
   out <- dplyr::left_join(subset_df, order_df, by = index_label)
   return(out)
+}
+
+identify_chains <- function(
+  post_array = fit_array,
+  param_hat = mu_theta[i],
+  sign_d = -1
+) {
+  param_hat <- rlang::enquo(param_hat)
+  # transform the input array into a `draws_df` objects
+  post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
+    dplyr::ungroup()
+  # convert tidybayes syntax for variable names
+  # into a quosure that identifies the column
+  # containing the parameter values
+  value_hat_col <- rlang::as_label(param_hat) |>
+    gsub("^\\~|\\[.*", "", x = _) |>
+    rlang::parse_expr()
+  # figure out which draws to flip
+  # use chains/iterations since that is how draws_array is structured
+  draw_flips <- post_long_df |>
+    dplyr::group_by(.chain) |>
+    dplyr::mutate(
+      mean_p = mean(!!value_hat_col),
+      flip = sign(mean_p) * sign(sign_d) < 0,
+      !!value_hat_col := case_when(
+        flip == TRUE ~ sign_d * !!value_hat_col,
+        .default = !!value_hat_col
+      )
+    ) |>
+    dplyr::ungroup()
+  sub_id_array <- tidybayes::unspread_draws(draw_flips, !!param_hat) |>
+    posterior::as_draws_array()
+  # copy the original array and return it with flipped values
+  id_array <- post_array
+  # create a logical vector for every element col
+  # that needs to be replaced in the original
+  vars_lgl <- stringr::str_detect(
+    unlist(dimnames(id_array)["variable"]), #var name for evey element
+    paste0(
+      rlang::as_label(value_hat_col), # regexp made from `value_col` expression
+      "\\[.*"
+    )
+  )
+  suppressWarnings(
+    id_array[,, vars_lgl] <- sub_id_array
+  )
+  # return in the same format as input - draws_array
+  # this is a valid input for posterior::mcmc_trace()
+  return(id_array)
+}
+
+identify_draws <- function(
+  post_array = fit_array,
+  param_hat = theta[i],
+  sign = -1
+) {
+  param_hat <- rlang::enquo(param_hat)
+  # transform the input array into a `draws_df` objects
+  post_long_df <- tidybayes::spread_draws(post_array, !!param_hat) |>
+    dplyr::ungroup()
+  # convert tidybayes syntax for variable names
+  # into a quosure that identifies the column
+  # containing the parameter values
+  value_hat_col <- rlang::as_label(param_hat) |>
+    gsub("^\\~|\\[.*", "", x = _) |>
+    rlang::parse_expr()
+  # figure out which draws to flip
+  # use chains/iterations since that is how draws_array is structured
+  draw_flips <- post_long_df |>
+    dplyr::group_by(i, .chain) |>
+    dplyr::mutate(
+      mean_d = mean.default(!!value_hat_col),
+      flip = (sign(!!value_hat_col) * sign) < 0,
+      !!value_hat_col := dplyr::case_when(
+        flip == TRUE ~ -1 * !!value_hat_col,
+        .default = !!value_hat_col
+      )
+    )
+  sub_id_array <- tidybayes::unspread_draws(draw_flips, !!param_hat) |>
+    posterior::as_draws_array()
+  # copy the original array and return it with flipped values
+  id_array <- post_array
+  # create a logical vector for every element col
+  # that needs to be replaced in the original
+  vars_lgl <- stringr::str_detect(
+    unlist(dimnames(id_array)["variable"]), #var name for evey element
+    paste0(
+      rlang::as_label(value_hat_col), # regexp made from `value_col` expression
+      "\\[.*"
+    )
+  )
+  suppressWarnings(
+    id_array[,, vars_lgl] <- sub_id_array
+  )
+  # return in the same format as input - draws_array
+  # this is a valid input for posterior::mcmc_trace()
+  return(id_array)
 }

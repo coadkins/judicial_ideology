@@ -6,40 +6,89 @@ simulate_data <- function(
   cohort_g = 20,
   judge_gi = 50,
   case_ij = 50,
-  types_b = 50
+  types_b = 50,
+  cutpoint1 = -0.5,
+  cutpoint2 = 0.5
 ) {
   # simulate data
   set.seed(02474)
 
-  ## define constants
+  ## basic quantities
   n_cohort <- cohort_g
-  year <- factor(1:n_cohort)
+  year <- 1:n_cohort
   n_party <- 2
   party <- rbinom(n_cohort, size = 1, prob = .5)
   n_judge <- judge_gi * n_cohort
   n_cases <- n_judge * case_ij
   n_case_types <- 50
-  n_cov <- 1 + (n_party - 1) + (n_cohort - 1) + (n_cohort - 1) * (n_party - 1)
+  ## derived quantities
+  knots <- find_knots(party)
+  n_knots <- length(knots)
+  idx_d <- which(party == 0)
+  idx_r <- which(party == 1)
+  knots_d <- match(intersect(knots, idx_d), idx_d)
+  knots_r <- match(intersect(knots, idx_r), idx_r)
 
-  gamma_sim <- construct_gamma(party, year)
-
-  sigma_theta <- rlnorm(1, 0, .5)
-  # vectorize draw_theta_ij() over party and year
-  theta_raw_list <- Map(
-    draw_theta_ij_raw,
-    party = party,
-    year = year,
-    MoreArgs = list(
-      n = n_judge / n_cohort,
-      gamma = gamma_sim,
-      sigma_theta = sigma_theta
-    )
+  # design matrices for simulating republican and democrat appointed covariates
+  x_d <- splines::ns(
+    year[idx_d],
+    knots = knots_d,
+    intercept = TRUE
   )
 
-  # reference group center the raw simulated theta
-  theta_reference <- theta_raw_list[[1]]
-  theta_vector <- (do.call(c, theta_raw_list) - mean(theta_reference)) /
-    sd(theta_reference)
+  x_r <- splines::ns(
+    year[idx_r],
+    knots = knots_r,
+    intercept = TRUE
+  )
+  # simulate gamma for those cohorts
+  gamma_d <- simulate_gamma(
+    x_d[,],
+    knots = knots_d,
+    trend_strength = -.5
+  )
+
+  gamma_r <- simulate_gamma(
+    x_r[,],
+    knots = knots_r,
+    trend_strength = -15
+  )
+
+  sigma_theta <- rlnorm(1, 0, .25)
+  # vectorize draw_theta_ij() over each row of the design matrix
+  ## draw for dems
+  theta_raw_list <- list()
+  theta_raw_list[idx_d] <- apply(
+    x_d[,],
+    MARGIN = 1,
+    \(x) {
+      draw_theta_ij_raw(
+        x,
+        n = judge_gi,
+        gamma = gamma_d,
+        sigma_theta = sigma_theta
+      )
+    },
+    simplify = FALSE
+  )
+  ## draw for reps.
+  theta_raw_list[idx_r] <- apply(
+    x_r[,],
+    MARGIN = 1,
+    \(x) {
+      draw_theta_ij_raw(
+        x = x,
+        n = judge_gi,
+        gamma = gamma_r,
+        sigma_theta = sigma_theta
+      )
+    },
+    simplify = FALSE
+  )
+
+  # standardize theta
+  theta_vector <- do.call(c, theta_raw_list)
+  theta_vector <- (theta_vector - mean(theta_vector)) / sd(theta_vector)
 
   # combine the values into a data.frame
   theta_df <- theta_vector |>
@@ -47,7 +96,7 @@ simulate_data <- function(
     dplyr::mutate(
       judge_id = 1:length(theta_vector),
       year = factor(
-        rep(1:n_cohort, each = n_judge / n_cohort)
+        rep(1:n_cohort, each = judge_gi)
       )
     ) |>
     dplyr::left_join(
@@ -57,19 +106,38 @@ simulate_data <- function(
 
   colnames(theta_df) <- c("theta", "judge_id", "year", "party")
 
-  case_params <- data.frame(
-    type = 1:n_case_types,
-    mu_beta = rnorm(n_case_types, 0, 2),
-    mu_alpha = rnorm(n_case_types, 0, 1)
+  # Covariance matrix for mu_alpha/mu_beta
+  # simulate a positive correlation for mu_alpha/mu_beta within case categories
+  vcov_matrix <- matrix(
+    c(1.0, 0, 0, 1),
+    nrow = 2
+  )
+  # Simulate case parameters from a very wide normal distribution
+  mu_ab_matrix <- MASS::mvrnorm(
+    n = n_case_types,
+    mu = c(0, 0),
+    Sigma = vcov_matrix
   )
 
+  case_params <- data.frame(
+    type = 1:n_case_types,
+    mu_beta = mu_ab_matrix[, 2], # second column for beta
+    mu_alpha = mu_ab_matrix[, 1] # first column for alpha
+  )
+
+  sigma_alpha <- rlnorm(1, 0, .25)
+  sigma_beta <- rlnorm(1, 0, .25)
   cases_df <- Map(
     draw_panel,
     case_id = 1:n_cases,
     case_type = sample(1:n_case_types, n_cases, replace = TRUE),
     MoreArgs = list(
       theta_df = theta_df,
-      mu_case_df = case_params
+      mu_case_df = case_params,
+      sigma_alpha = sigma_alpha,
+      sigma_beta = sigma_beta,
+      cutpoint1 = cutpoint1,
+      cutpoint2 = cutpoint2
     )
   ) |>
     purrr::list_rbind()
@@ -83,7 +151,11 @@ simulate_data <- function(
         as.numeric()
     )
 
-  x <- with(judge_covariates, model.matrix(~ 1 + party + year + party * year))
+  x <- splines::bs(
+    year,
+    knots = knots,
+    intercept = TRUE
+  )
 
   stan_data <- list(
     N = nrow(cases_df),
@@ -91,11 +163,12 @@ simulate_data <- function(
     B = length(unique(cases_df$case_type)),
     N_judge = length(unique(cases_df$judge_id)),
     G = length(unique(cases_df[, "year"])),
-    K = ncol(x),
+    K = ncol(x[,]),
     outcome = with(cases_df, outcome[order(case_id)]),
     ii = with(cases_df, judge_id[order(case_id)]), # judge for each obs.
     jj = with(cases_df, case_id[order(case_id)]), # case for each obs.
-    x = x,
+    x = x[,],
+    mu_theta_ref_group = 1,
     # .join_data is returned in "mcmc_data" and is useful for post-processing
     .join_data = list(
       mu_theta = dplyr::pull(judge_covariates, mu_theta),
@@ -123,41 +196,40 @@ simulate_data <- function(
   # Append additional data to facilitate identifcation
   stan_data <- append(
     stan_data,
-    list(mu_theta_ref_group = 1, grainsize = 2000),
+    list(
+      mu_case_pos_idx = which(case_params[, 2] == max(case_params[, 2])),
+      mu_case_neg_idx = which(case_params[, 2] == min(case_params[, 2]))
+    ),
   )
   return(stan_data)
 }
+################# FUNCTIONS USED INTERNALLY IN SIMULATE_DATA() #################
+simulate_gamma <- function(
+  x,
+  knots,
+  trend_strength = -2
+) {
+  n_basis <- ncol(x)
+  gamma <- matrix(NA, nrow = 1, ncol = ncol(x))
 
-construct_gamma <- function(party, year) {
-  # construct matrix of gamma parameters consistent with my theory
-  # this is onerous beceause year is "one-hot encoded"
-  x <- model.matrix(~ 0 + party + year + party * year)
-  year_cols <- grep("^year\\d+$", colnames(x))
-  party_year_cols <- grep("^party:year\\d+$", colnames(x))
-  # subtract 1 from dem_years to match
-  dem_years <- which(party == 0)
-  gamma <- matrix(NA, ncol = ncol(x), nrow = 1)
-  gamma[, 1] <- (-1) # gamma for party
-  gamma[, year_cols] <- seq(
-    from = -.2,
-    by = -.1,
-    length.out = length(year_cols)
-  ) # gamma for each year (theta1)
-  # gamma for each party*year(theta)
-  gamma[, party_year_cols[-dem_years]] <- seq(
-    from = -.2,
-    by = -.4, # reps.
-    length.out = length(party_year_cols[-dem_years])
-  )
-  gamma[, party_year_cols[dem_years]] <-
-    rep(0, length(party_year_cols[dem_years]))
+  # Add negative trend over time for non-intercept terms
+  basis_weights <- seq(0, trend_strength, length.out = n_basis)
+  gamma[1, ] <- basis_weights
+  # add some noise at the knots
+  for (i in seq_along(knots)) {
+    knot_pos <- knots[i]
+    # find which basis functions are most active around this knot
+    # other functions are equal to 0 and will drop out
+    knot_influence <- x[knot_pos, ]
+    # dont change the intercep
+    knot_influence[1] <- 0
+    gamma[1, ] <- gamma[1, ] + rnorm(1, 0, 1) * knot_influence
+  }
   return(gamma)
 }
 
-draw_theta_ij_raw <- function(ng mu
-  x <- model.matrix(~ n, party, year, gamma, sigma_theta) {
+draw_theta_ij_raw <- function(n, x, gamma, sigma_theta) {
   # variables predicting mu
-  x <- model.matrix(~ 0 + party + year + party * year) # 1xk row vector
   mu <- x %*% t(gamma)
   # draw theta_ij
   out <- rnorm(n, mu, sigma_theta)
@@ -170,31 +242,87 @@ theta_ij_standardize <- function(theta_vector) {
   return(theta_standardized)
 }
 
+draw_mu_ab <- function(vcov_matrix, mu_alpha, mu_beta, n_case_types) {
+  # Mean vector for the first component (positive beta)
+  mu1 <- c(mu_alpha, mu_beta)
+  # Mean vector for the second component (negative beta)
+  mu2 <- c(mu_alpha * 1, mu_beta * -1)
+
+  # 2. Simulate from each component
+  n_half <- round(n_case_types / 2)
+
+  # Draw samples for the first half of case types
+  group1_params <- MASS::mvrnorm(n = n_half, mu = mu1, Sigma = vcov_matrix)
+
+  # Draw samples for the second half of case types
+  group2_params <- MASS::mvrnorm(
+    n = n_case_types - n_half,
+    mu = mu2,
+    Sigma = vcov_matrix
+  )
+
+  # Combine the results and format the data frame
+  mu_ab_matrix <- rbind(group1_params, group2_params)
+  return(mu_ab_matrix)
+}
 ## simulate judges and cases
-draw_case <- function(thetas, mu_beta, mu_alpha) {
-  alpha <- rnorm(1, mu_alpha, .8)
-  beta <- rnorm(1, mu_beta, .8)
-  linear_func <- alpha + t(beta) * thetas
-  link_func <- 1 / (1 + exp(-(linear_func)))
-  y_out <- rbinom(prob = link_func, n = 1, size = 1)
+draw_case <- function(
+  thetas,
+  mu_beta,
+  mu_alpha,
+  sigma_alpha,
+  sigma_beta,
+  cutpoint1,
+  cutpoint2
+) {
+  alpha <- rnorm(1, mu_alpha, sigma_alpha)
+  beta <- rnorm(1, mu_beta, sigma_beta)
+  linear_func <- alpha + beta * thetas
+  y_out <- ordered_logit(linear_func, cutpoint1, cutpoint2)
   return(y_out)
 }
 
-draw_panel <- function(case_id, theta_df, mu_case_df, case_type) {
+draw_panel <- function(
+  case_id,
+  theta_df,
+  mu_case_df,
+  case_type,
+  sigma_alpha,
+  sigma_beta,
+  cutpoint1 = -0.5,
+  cutpoint2 = 0.5
+) {
   panel <- theta_df[sample(1:nrow(theta_df), size = 3), ] # 3 judges per panel
   thetas <- as.matrix(panel[, 1]) # 1 thetas per judge
   mu_case_df <- with(mu_case_df, mu_case_df[type == case_type, ]) # 1 case type per panel
+
   case <- apply(
     thetas,
     MARGIN = 1,
     FUN = draw_case,
     mu_beta = with(mu_case_df, mu_case_df[type == case_type, "mu_beta"]),
-    mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"])
+    mu_alpha = with(mu_case_df, mu_case_df[type == case_type, "mu_alpha"]),
+    sigma_alpha = sigma_alpha,
+    sigma_beta = sigma_beta,
+    cutpoint1 = cutpoint1,
+    cutpoint2 = cutpoint2
   )
   panel$outcome <- case
   panel$case_id <- case_id
   panel$case_type <- mu_case_df[, "type"]
   return(panel)
+}
+
+ordered_logit <- function(x, cutpoint1, cutpoint2) {
+  y_out <- NA
+  if (x <= cutpoint1) {
+    y_out <- 1
+  } else if (x > cutpoint1 & x <= cutpoint2) {
+    y_out <- 2
+  } else {
+    y_out <- 3
+  }
+  return(y_out)
 }
 
 gen_group_idx <- function(
@@ -203,7 +331,6 @@ gen_group_idx <- function(
   y,
   names = c("judges_by_group", "group_start", "group_end")
 ) {
-  # Load required library
   # Get unique individuals by group, arranged by year
   x_by_group <- df[!duplicated(df[[x]]), ] |>
     dplyr::arrange(year)
@@ -239,39 +366,54 @@ gen_group_idx <- function(
   return(result)
 }
 
-#' Get idx for judge with theta closest to a target value
-#'
-#' @param df data frame of case outcomes
-#' @param x data frame column of individual ids; the data frame is filtered to
-#' include one entry per individual
-#' @param y data frame column of parameter values for each individual
-#' @param target the target value for the parameter y
-#'
-#' @returns an individual id (i.e. judge id) id'ing the individual with the
-#' score closest to the target value
-#'
-fix_judge_idx <- function(df, x, y, target) {
-  # narrow to unique individual ids
-  df <- with(df, df[!duplicated(x)], )
-  # calculate absolute distance to target value
-  df[, "distance_to_target"] <- abs(df[, y] - target)
-  # get index
-  idx <- which.min(df[, "distance_to_target"])
-  return(df[idx, x])
+find_knots <- function(party) {
+  # Compare each element with the next one
+  knots <- party[-length(party)] != party[-1]
+  # Get indices where transitions occur (add 1 to get the higher index)
+  return(which(knots))
 }
-# Right now, this file just contains functions that are applicable are
-# applicable across simulation types
+########## HELPER FUNCTIONS NOT USED IN SIMULATE_DATA() #######################
+visualize_variation_theta <- function(dgp_df) {
+  ggplot2::ggplot(
+    dgp_df,
+    ggplot2::aes(x = year, y = theta, fill = factor(party))
+  ) +
+    ggplot2::geom_boxplot(
+      outlier.shape = NA
+    ) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27")
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::ylab("Theta") +
+    ggplot2::xlab("Judge Cohort ID") +
+    ggplot2::ggtitle("Distribution of Theta Estimates by Cohort")
+}
 
-# this function creates secondary data strucutures which are used to create
-# indexes in Stan, which facilitate vectorized sampling within groups
-#' Generate group indices for my stan model
-#'
-#' @param df a dataframe that matches individuals to groups
-#' @param x string, column containing individual id indicators
-#' @param y string, column containing group id indicators
-#' @param names vector, optional, names for elements of the output list
-#'
-#' @returns a list, the first element is a vector of individuals ordered by group,
-#' the second element is a vector of group start indices,
-#' and the third element is a vector of group end indices
-#'
+visualize_variation_outcome <- function(outcome, g_ij, party) {
+  party_df <- tibble::tibble(
+    groups = as.factor(seq.int(party)),
+    party = as.factor(party)
+  )
+  data <- tibble::tibble(outcome = outcome, groups = g_ij) |>
+    dplyr::left_join(party_df, by = "groups")
+  ggplot2::ggplot(data, ggplot2::aes(x = outcome, fill = party)) +
+    ggplot2::geom_bar(alpha = 0.7) +
+    ggplot2::scale_fill_manual(
+      values = c("#1696d2", "#db2b27"),
+      labels = c("Democrat Appointed", "Republican Appointed")
+    ) +
+    ggplot2::facet_wrap(~groups, ncol = 5) +
+    ggplot2::labs(
+      title = "Outcomes by Cohort",
+      y = "",
+      x = ""
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(size = 10)
+    )
+}
