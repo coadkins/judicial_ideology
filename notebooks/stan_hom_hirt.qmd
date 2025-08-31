@@ -38,7 +38,7 @@ $$
 The basic idea behind this model is that every group of judicial appointees has its ideology scores drawn from a distinct, group-level normal distribution. In this model, $mu_{g[i]}$ corresponds to the judicial cohort $g$ for judge $i$. The group means are modeled using:
 $$\mu_{g[i]} = \tilde{x}_{g[i]} \cdot \gamma$$
 
-- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In particular, $\tilde{x}_{g[i]}$ is a model matrix for a cubic natural spline with an intercept and a "knot" at every point where there is a "regime change" - i.e., when the party of the cohort switches from Republican to Democrat or vice versa. This basis spline model avoids the problems of multicollinearity that arise from using party as a predictor when cohorts are completely nested within parties. It nonetheless still allows adjacent means to influence each other.[^3]  
+- $\tilde{x}_{g[i]}$ is a $[1\times K]$ row-vector of judge-level covariates predicting $\mu_{g[i]}$. In particular, $\tilde{x}_{g[i]}$ is a model matrix for a cubic natural spline with an intercept and a "knot" at every point where there is a "regime change" - i.e., when the party of the cohort switches from Republican to Democrat or vice versa. This basis spline model avoids the problems of multicollinearity that arise from using party as a predictor when cohorts are completely nested within parties. It nonetheless still allows adjacent means to influence each other.  
 
 - $\gamma$ is a $[1 \times K]$ matrix of parameters predicting the mean value of $\theta_i$ for each group, $\mu_{g[i]}$. 
 
@@ -72,7 +72,7 @@ beta$ to be positive or negative. In practice, it can be difficult to specify th
 Instead, I employ employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains (Papastamoulis et. al 2022). For IRT models with only one dimension, this procedure forces the mean draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
 
 # Estimation
-To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$ (Betancourt and Girolami 2015). This strategy is described in [the STAN user manual] (https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization) as a method for improving convergence in hierarchical models where the size of each group is relatively small.[^4] For instance, the "centered" approach parameterizes $\theta_i$ as:
+To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$ (Betancourt and Girolami 2015). This strategy is described in [the STAN user manual] (https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization) as a method for improving convergence in hierarchical models where the size of each group is relatively small. For instance, the "centered" approach parameterizes $\theta_i$ as:
 
 $$\theta_{g[i]} \sim \mathcal{N}(\mu_\theta, \Sigma_\theta)$$ 
 
@@ -91,21 +91,15 @@ $c$ has a very wide prior of $\mathcal{N} (0, 10)$.
 
 # Validation
 
-I validate the appropriateness of the model using simulated data with the following group and outcome structure:
+I validate the appropriateness of the model using simulated data that matches the distribution of ability scores and outcomes predicted by my theory.
 
-[ ]
-[Figure 1] [good_outcome.png]
+In one MCMC run, the group level 95% credible intervals cover the true parameters values for 95% of cases. In this figure, the gray box plots represent the 95% credible interval for estimates of $\mu_theta$ for each group. The red and blue colored boxes represent the middle quartiles of the distribution of $\theta$ for each group, with the black horizontal line representing the true group mean. 
 
-This data matches the distribution of ability scores and outcomes predicted by my theory.
-
-In one MCMC run, the group level 95% credible intervals cover the true parameters values for 95% of cases.
-[Figure 2] (good_validation.png)
+![Figure 1](../good_validation.png)
 
 After RSP, the trace plots suggest that the model is well identified:
 
-[Figure 3] (good_trace.png)
-
---- insert plot ---
+![Figure 2](../good_trace.png)
 
 As a check, I have implemented a simplified version of Simulation Based Validation, which calculates the average coverage across 40 runs of the sampler - i.e. the average rate at which the posterior distribution for each group includes the true parameter value (Talts et al. 2018). For 95% intervals, the coverage rate should be close to 95%. These simulations are still ongoing. 
 
