@@ -6,7 +6,7 @@ on:
       - main
   push:
     branches:
-      - ordered_outcome 
+      - ordered_beta_free 
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
