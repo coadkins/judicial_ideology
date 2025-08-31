@@ -98,8 +98,8 @@ model {
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
     if (b == mu_case_pos_idx) {
-      mu_ab[b, 1] ~ normal(0, 5);
-      mu_ab[b, 2] ~ lognormal(0, 1);
+      mu_ab[b, 1] ~ normal(0, 1);
+      mu_ab[b, 2] ~ normal(1, 1);
     } else {
       mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
     }
