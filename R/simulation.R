@@ -22,7 +22,7 @@ simulate_data <- function(
   n_cases <- n_judge * case_ij
   n_case_types <- 50
   ## derived quantities
-  knots <- floor(quantile(year, seq(from = 0, to = 1, length.out = 6)))
+  knots <- floor(quantile(year, seq(from = 0, to = 1, length.out = 4)))
   n_knots <- length(knots)
   idx_d <- which(party == 0)
   idx_r <- which(party == 1)
