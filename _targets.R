@@ -15,11 +15,12 @@ library(qs2)
 library(paws.storage)
 
 tar_option_set(
+  # Use memory more sparingly
+  memory = "transient",
   garbage_collection = TRUE,
   repository = "aws",
   repository_meta = "aws",
   format = "qs",
-  controller = crew_controller_local(workers = 4),
   resources = tar_resources(
     tar_resources_aws(
       bucket = Sys.getenv("S3_BUCKET"),
