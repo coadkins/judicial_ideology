@@ -97,13 +97,9 @@ model {
   // Priors for case-specific parameters
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
-    if (b == mu_case_pos_idx) {
-      mu_ab[b, 1] ~ normal(0, 1);
-      mu_ab[b, 2] ~ normal(1, 1);
-    } else {
-      mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
-    }
+    mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
   }
+  
   // Inverse Wishart prior for mu_ab's covariance matrix
   Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
   
