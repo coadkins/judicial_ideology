@@ -4,6 +4,7 @@
 #   https://books.ropensci.org/targets/walkthrough.html#inspect-the-pipeline
 
 # Load packages required to define the pipeline:
+library(crew)
 library(here)
 library(stantargets)
 library(stringi)
@@ -67,8 +68,8 @@ list(
     ),
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 1500,
-    iter_sampling = 1500,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
     format = "qs",
     format_df = "qs",
     stdout = R.utils::nullfile(),

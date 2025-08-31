@@ -22,28 +22,27 @@ simulate_data <- function(
   n_cases <- n_judge * case_ij
   n_case_types <- 50
   ## derived quantities
-  knots <- floor(quantile(year, seq(from = 0, to = 1, length.out = 6)))
-  n_knots <- length(knots)
+  n_knots = 3
   idx_d <- which(party == 0)
   idx_r <- which(party == 1)
-  knots_d <- match(intersect(knots, idx_d), idx_d)
-  knots_r <- match(intersect(knots, idx_r), idx_r)
-
+  knots_d <- find_knots(party = year[idx_d], n_knots = n_knots)
+  knots_r <- find_knots(party = year[idx_r], n_knots = n_knots)
   # design matrices for simulating republican and democrat appointed covariates
-  x <- splines::ns(
+  x <- splines::bs(
     year,
+    knots = find_knots(year, 6),
     intercept = TRUE
   )
 
   x_d <- splines::ns(
     year[idx_d],
-    knots = knots_d,
+    knots = find_knots(party = year[idx_d], n_knots = n_knots),
     intercept = TRUE
   )
 
   x_r <- splines::ns(
     year[idx_r],
-    knots = knots_r,
+    knots = find_knots(year[idx_r], n_knots = n_knots),
     intercept = TRUE
   )
   # simulate gamma for those cohorts
@@ -56,7 +55,7 @@ simulate_data <- function(
   gamma_r <- simulate_gamma(
     x_r[,],
     knots = knots_r,
-    trend_strength = -15
+    trend_strength = -10
   )
 
   sigma_theta <- rlnorm(1, 0, .25)
@@ -365,11 +364,14 @@ gen_group_idx <- function(
   return(result)
 }
 
-find_knots <- function(party) {
-  # Compare each element with the next one
-  knots <- party[-length(party)] != party[-1]
-  # Get indices where transitions occur (add 1 to get the higher index)
-  return(which(knots))
+find_knots <- function(party, n_knots) {
+  if (length(party) <= n_knots) {
+    knots <- 1:length(party)
+  } else {
+    # evenly space knots
+    knots <- round(seq(1, length(party), length.out = n_knots))
+  }
+  return(knots)
 }
 ########## HELPER FUNCTIONS NOT USED IN SIMULATE_DATA() #######################
 visualize_variation_theta <- function(dgp_df) {

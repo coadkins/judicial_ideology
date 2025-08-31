@@ -15,13 +15,11 @@ validation_plot <- function(data, id, param, dgp_df) {
       labels = c("Democrat Appointed", "Republican Appointed")
     ) +
     ggplot2::theme_minimal() +
+    ggplot2::theme(legend.title = ggplot2::element_blank()) +
+    ggplot2::guides(alpha = "none") +
     ggplot2::ylab("Mu Theta") +
     ggplot2::xlab("Judge Cohort ID") +
-    ggplot2::ggtitle("Distribution of Mu_Theta Estimates by Cohort") +
-    ggplot2::labs(
-      caption = "The colored boxplots depict the middle two quantiles of the \'true\' distribution of theta. \n
-  The gray boxplots show the distribution of estimates for mu_theta for each group."
-    )
+    ggplot2::ggtitle("Distribution of Mu_Theta Estimates by Cohort")
 }
 
 reshape_posterior <- function(
