@@ -32,6 +32,8 @@ print(plot2)
 
 ```{r}
 #| label: trace plots after RSP
+plot3 <- tar_read(id_trace_plots)
+print(plot3)
 ```
 
 ```{r}
@@ -42,6 +44,7 @@ plot4
 
 ```{r}
 # label: trace plots with alt RSP
+plot5 <- tar_read(id_trace_plots)
 ```
 
 ```{r}
@@ -79,4 +82,4 @@ stri_c(
 
 - Model from Git commit 9fd0663. When using RSP, the results look promising: there is 95% coverage of the true parameter value for theta. The 95% intervals could be narrower. In the next iteration, I will constrain one case type to have a positive beta, and revert to original strategy with the 'knots'.
 
-- 
+- Model from Git commit 3c25ac0. This model had a soft constraint on beta for one group, and it exhibited "bunching" for one chain along 0. Either the constraint needs to be relaxed or removed.
