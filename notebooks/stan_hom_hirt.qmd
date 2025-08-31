@@ -66,9 +66,10 @@ To overcome this, I employ variants of the identification constraints proposed b
 
 (2) $\Sigma_{\theta} = 1$. Unit variance group ideal points. See above.
 
-(3) $\mu_{\beta_B} > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $\mathcal{D}$ (in this case there is only one dimension). In simulations, I constrain the simulated $\mu_{\beta_B}$ with the highest value; in real data, I constrain the $\mu_{\beta_B}$ that corresponds to the category of cases that Republican judges are empirically mostly like to vote with with other Republicans on (and is therefore likely to be positive).
+(3) $\mu_{\beta_B} > 0$ or $\beta_j < 0$. Sign invariance for some case $j$ on each factor $\mathcal{D}$ (in this case there is only one dimension). One approach to this constraint is to directly constrain the sign of some $
+beta$ to be positive or negative. In practice, it can be difficult to specify the constraint without causing mcmc chains to "bunch" near the constraint. 
 
-When these constraints are insufficient for identification, I employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains (Papastamoulis et. al 2022). For IRT models with only one dimension, this procedure forces the mean draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
+Instead, I employ employ "Rotation Sign Permutation" after sampling to harmonize draws across MCMC chains (Papastamoulis et. al 2022). For IRT models with only one dimension, this procedure forces the mean draw for each chain to share the same sign; chains that do not meet this constraint have their draws multiplied by -1. 
 
 # Estimation
 To help with convergence, I use non-centered parameterizations for $\alpha$, $\beta$ and $\theta$ (Betancourt and Girolami 2015). This strategy is described in [the STAN user manual] (https://mc-stan.org/docs/1_36/stan-users-guide/efficiency-tuning.html#non-centered-parameterization) as a method for improving convergence in hierarchical models where the size of each group is relatively small.[^4] For instance, the "centered" approach parameterizes $\theta_i$ as:
@@ -92,15 +93,17 @@ $c$ has a very wide prior of $\mathcal{N} (0, 10)$.
 
 I validate the appropriateness of the model using simulated data with the following group and outcome structure:
 
---- insert plot--
+[ ]
+[Figure 1] [good_outcome.png]
 
 This data matches the distribution of ability scores and outcomes predicted by my theory.
 
-In one MCMC run, the group level estimates track the direction of the true distribution of ideology scores.
-
---- insert plot ---
+In one MCMC run, the group level 95% credible intervals cover the true parameters values for 95% of cases.
+[Figure 2] (good_validation.png)
 
 After RSP, the trace plots suggest that the model is well identified:
+
+[Figure 3] (good_trace.png)
 
 --- insert plot ---
 
@@ -116,6 +119,7 @@ I have run simulations using both centered and non-centered parameterization, an
 ## Identification
 I considered a range of identification stategies, including:
 - Centering (but not scaling) $\mu_\theta$ for all groups on a reference group $\mu_{\theta_{g=1}}$. This makes the results -- and especially the variance -- easier to interpret, but did not sufficiently constrain $\theta$ for identification.  
+- Imposing sign constraints on some $\alpha_j$ and/or $\beta_j$. The appeal in this context is that sign constraints on case categories are easy to justify substantively. In practice, a hard constraint often triggers some chains to fail to explore the parameter space. Likewise, it is difficult to express a "soft" constraint in terms of priors that avoids chain "bunching." 
 
 ## Grouping Structure
 ### No hierarchical priors on $\alpha$ and $\beta$
@@ -149,7 +153,7 @@ data {
   matrix[G, K] x; // intercept and weights for basis spline of "cohort year" 
   // These data structures facilitate identification by creating             // 
   // constraints on mu_beta
-  int<lower=1> mu_case_pos_idx;
+  // ...
   // I use these data structures to mimic ragged arrays of judges and cases //
   // This allows me to vectorize sampling within groups, which is much      //
   // faster than looping across all judges and individuals                  //
@@ -232,13 +236,8 @@ model {
   // Priors for case-specific parameters
   //  Bivariate normal prior for mu_alpha and mu_beta
   for (b in 1 : B) {
-    if (b == mu_case_pos_idx) {
-      mu_ab[b, 1] ~ normal(0, 5);
-      mu_ab[b, 2] ~ lognormal(0, 1);
-    } else {
       mu_ab[b,  : ] ~ multi_normal([0, 0], Sigma);
     }
-  }
   // Inverse Wishart prior for mu_ab's covariance matrix
   Sigma ~ inv_wishart(4, diag_matrix(rep_vector(1.0, 2)));
   
